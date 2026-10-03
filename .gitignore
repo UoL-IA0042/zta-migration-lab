@@ -1,0 +1,28 @@
+# Secrets and credentials — never commit
+*.pem
+*.key
+*.ovpn
+.vault-pass
+kubeconfig*
+*credentials*
+
+# Terraform (when terraform-aws/ lands)
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars          # commit only *.tfvars.example
+
+# Ansible
+*.retry
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Editors / OS
+.DS_Store
+*.swp
+
+# NOTE: test-matrix/results/*.csv are deliberately NOT ignored — they are
+# research data and belong in version control.
