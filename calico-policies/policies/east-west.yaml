@@ -1,0 +1,89 @@
+# East-west zero trust: default deny everywhere, then explicit allows
+# that mirror the application's legitimate call graph:
+#   (external via MetalLB) -> frontend -> api -> db
+# The test procedure probes both the allowed path and the denied
+# shortcuts (frontend -> db, external -> api, db -> anywhere).
+---
+# Cluster-wide default deny for the three tiers (DNS excepted).
+apiVersion: projectcalico.org/v3
+kind: GlobalNetworkPolicy
+metadata:
+  name: tier-default-deny
+spec:
+  namespaceSelector: has(tier)
+  types: [Ingress, Egress]
+  egress:
+    - action: Allow
+      protocol: UDP
+      destination:
+        selector: k8s-app == "kube-dns"
+        namespaceSelector: kubernetes.io/metadata.name == "kube-system"
+        ports: [53]
+    - action: Allow
+      protocol: TCP
+      destination:
+        selector: k8s-app == "kube-dns"
+        namespaceSelector: kubernetes.io/metadata.name == "kube-system"
+        ports: [53]
+---
+# frontend: accepts external ingress; may call api only.
+apiVersion: projectcalico.org/v3
+kind: NetworkPolicy
+metadata:
+  name: frontend
+  namespace: tier-frontend
+spec:
+  selector: app == "frontend"
+  types: [Ingress, Egress]
+  ingress:
+    - action: Allow
+      protocol: TCP
+      destination: {ports: [80]}
+  egress:
+    - action: Allow
+      protocol: TCP
+      destination:
+        selector: app == "api"
+        namespaceSelector: tier == "api"
+        ports: [80]
+---
+# api: accepts only frontend; may call only db.
+apiVersion: projectcalico.org/v3
+kind: NetworkPolicy
+metadata:
+  name: api
+  namespace: tier-api
+spec:
+  selector: app == "api"
+  types: [Ingress, Egress]
+  ingress:
+    - action: Allow
+      protocol: TCP
+      source:
+        selector: app == "frontend"
+        namespaceSelector: tier == "frontend"
+      destination: {ports: [80]}
+  egress:
+    - action: Allow
+      protocol: TCP
+      destination:
+        selector: app == "db"
+        namespaceSelector: tier == "db"
+        ports: [5432]
+---
+# db: accepts only api; no egress beyond DNS.
+apiVersion: projectcalico.org/v3
+kind: NetworkPolicy
+metadata:
+  name: db
+  namespace: tier-db
+spec:
+  selector: app == "db"
+  types: [Ingress]
+  ingress:
+    - action: Allow
+      protocol: TCP
+      source:
+        selector: app == "api"
+        namespaceSelector: tier == "api"
+      destination: {ports: [5432]}
