@@ -1,0 +1,100 @@
+# Access-control test matrix — Phase 1 (perimeter VPN baseline).
+#
+# One file per phase, kept in git: the diff between phase matrices IS the
+# access-model change the migration makes, and belongs in the analysis.
+#
+# Every role must list BOTH allow and deny expectations: negative cases
+# are the direct measure of least privilege.
+---
+phase: phase-1
+defaults:
+  timeout: 10
+
+resources:
+  intranet-web:
+    type: http
+    url: http://10.0.0.73:8080
+    operations:
+      read: {method: GET, path: /}
+
+  file-service:
+    type: tcp
+    host: 10.0.0.73
+    port: 445
+    operations:
+      connect: {}
+
+  postgres:
+    type: exec
+    operations:
+      # PGPASSWORD supplied via environment on the probing machine.
+      read:
+        command: >-
+          psql -h 10.0.0.73 -U {role} -d labdb -tAc 'SELECT 1'
+      write:
+        command: >-
+          psql -h 10.0.0.73 -U {role} -d labdb -tAc
+          'INSERT INTO probe_writes (role) VALUES (current_user)'
+
+  legacy-service:
+    type: tcp
+    host: 10.0.0.73
+    port: 8023
+    operations:
+      connect: {}
+
+  aws-s3-data:
+    type: exec
+    operations:
+      # AWS credentials for the role supplied via profile on the probing machine.
+      read:
+        command: >-
+          aws s3api head-object --bucket lab-data-bucket --key probe.txt
+          --profile {role}
+      write:
+        command: >-
+          aws s3api put-object --bucket lab-data-bucket --key probe-{role}.txt
+          --profile {role}
+
+  aws-app:
+    type: http
+    url: http://10.100.10.10:8080
+    operations:
+      read: {method: GET, path: /}
+
+# Phase 1 deliberately encodes the coarse, perimeter-era access model:
+# VPN group membership grants broad network reachability, so several
+# "allow" rows below are wider than the roles' actual needs. The phase-2+
+# matrices tighten these to least privilege; the diff quantifies the gain.
+expectations:
+  remote-admin:
+    intranet-web: {read: allow}
+    file-service: {connect: allow}
+    postgres: {read: allow, write: allow}
+    legacy-service: {connect: allow}
+    aws-s3-data: {read: allow, write: allow}
+    aws-app: {read: allow}
+
+  remote-developer:
+    intranet-web: {read: allow}
+    file-service: {connect: allow}
+    postgres: {read: allow, write: allow}
+    legacy-service: {connect: allow}   # over-broad on purpose (perimeter model)
+    aws-s3-data: {read: allow, write: deny}
+    aws-app: {read: allow}
+
+  remote-analyst:
+    intranet-web: {read: allow}
+    file-service: {connect: allow}
+    postgres: {read: allow, write: deny}
+    legacy-service: {connect: allow}   # over-broad on purpose (perimeter model)
+    aws-s3-data: {read: allow, write: deny}
+    aws-app: {read: allow}
+
+  remote-contractor:
+    intranet-web: {read: allow}
+    file-service: {connect: deny}
+    postgres: {read: deny, write: deny}
+    legacy-service: {connect: deny}
+    aws-s3-data: {read: deny, write: deny}
+    aws-app: {read: deny}
