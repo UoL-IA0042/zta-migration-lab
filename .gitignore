@@ -24,5 +24,8 @@ __pycache__/
 .DS_Store
 *.swp
 
+# Git config
+.gitconfig
+
 # NOTE: test-matrix/results/*.csv are deliberately NOT ignored — they are
 # research data and belong in version control.
