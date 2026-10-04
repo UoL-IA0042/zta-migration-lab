@@ -233,3 +233,7 @@ main.main()
 Found a bug in the ansible code where the directories were not being created, which
 caused the `permission denied` errors. Fixed in a commit alongside this journal
 entry. The observability stack is now deployed.
+
+## 2026-10-04 14:00-14:30 | phase-0 | ansible-observability | deployment
+Update the observability ansible code to use `ansible-vault` for the grafana admin
+password.

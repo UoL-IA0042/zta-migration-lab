@@ -11,7 +11,7 @@ prometheus_retention: 90d            # cover the full experimental period
 prometheus_scrape_interval: 15s
 
 grafana_admin_user: admin
-grafana_admin_password: "CHANGE-ME-USE-VAULT"
+grafana_admin_password: "{{ vault_grafana_admin_password }}"
 
 # Scrape targets (node_exporter listens on :9100)
 node_exporter_targets:
