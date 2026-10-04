@@ -19,3 +19,10 @@ node_exporter_targets:
   - 10.0.0.72
   - 10.0.0.73
   - 10.0.0.74
+
+# Log shipping: Grafana Alloy on every node pushes to Loki on tpi2-1.
+# VERIFY at deploy time: confirm the current 1.x release in the Grafana
+# apt repository and record the resolved package version in the journal.
+alloy_version: "1.20.*"
+loki_push_url: "http://10.0.0.71:3100/loki/api/v1/push"
+alloy_collect_docker: true           # container logs; needs docker group (root-equivalent)

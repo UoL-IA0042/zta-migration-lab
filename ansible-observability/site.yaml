@@ -1,4 +1,4 @@
-# Observability: node_exporter everywhere, Prometheus/Grafana/Loki on tpi2-1.
+# Observability: node_exporter and Alloy everywhere, Prometheus/Grafana/Loki on tpi2-1.
 # Deploy BEFORE Phase 1 so baseline measurements are captured.
 ---
 - name: Install node_exporter on all nodes
@@ -88,3 +88,94 @@
       delay: 5
       register: prom_ready
       until: prom_ready.status == 200
+
+    - name: Wait for Loki readiness
+      ansible.builtin.uri:
+        url: "http://{{ ansible_host }}:3100/ready"
+        status_code: 200
+      retries: 24
+      delay: 5
+      register: loki_ready
+      until: loki_ready.status == 200
+
+- name: Deploy Alloy log agent on all nodes
+  hosts: log_agents
+  become: true
+  tasks:
+    - name: Create apt keyring directory
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: "0755"
+
+    - name: Install Grafana apt signing key
+      ansible.builtin.get_url:
+        url: https://apt.grafana.com/gpg-full.key
+        dest: /etc/apt/keyrings/grafana.asc
+        mode: "0644"
+
+    - name: Add Grafana apt repository
+      ansible.builtin.apt_repository:
+        repo: "deb [signed-by=/etc/apt/keyrings/grafana.asc] https://apt.grafana.com stable main"
+        filename: grafana
+        state: present
+
+    - name: Install Alloy
+      ansible.builtin.apt:
+        name: "alloy={{ alloy_version }}"
+        state: present
+        update_cache: true
+
+    # Created ahead of Docker so Alloy already holds the group when a later
+    # component installs docker.io (its postinst reuses an existing group).
+    - name: Pre-create docker group
+      ansible.builtin.group:
+        name: docker
+        system: true
+        state: present
+      when: alloy_collect_docker
+
+    - name: Grant Alloy read access to the journal (and Docker)
+      ansible.builtin.user:
+        name: alloy
+        groups: "{{ ['adm', 'systemd-journal'] + (['docker'] if alloy_collect_docker else []) }}"
+        append: true
+      notify: Restart alloy
+
+    - name: Template Alloy config
+      ansible.builtin.template:
+        src: templates/config.alloy.j2
+        dest: /etc/alloy/config.alloy
+        mode: "0644"
+        validate: /usr/bin/alloy fmt %s
+      notify: Reload alloy
+
+    - name: Enable and start Alloy
+      ansible.builtin.systemd:
+        name: alloy
+        enabled: true
+        state: started
+
+  handlers:
+    - name: Reload alloy
+      ansible.builtin.systemd:
+        name: alloy
+        state: reloaded
+
+    - name: Restart alloy
+      ansible.builtin.systemd:
+        name: alloy
+        state: restarted
+
+- name: Verify every node is shipping logs to Loki
+  hosts: observability
+  gather_facts: false
+  tasks:
+    - name: Wait until Loki has received logs from every node
+      ansible.builtin.uri:
+        url: "http://{{ ansible_host }}:3100/loki/api/v1/label/host/values"
+        return_content: true
+      register: loki_hosts
+      retries: 12
+      delay: 10
+      until: (loki_hosts.json.data | default([])) is superset(groups['log_agents'])

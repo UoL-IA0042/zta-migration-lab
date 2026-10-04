@@ -1,0 +1,74 @@
+// Managed by ansible-observability. Ships logs from {{ inventory_hostname }}
+// to Loki on tpi2-1. Every stream carries host="{{ inventory_hostname }}".
+
+logging {
+  level = "warn"
+}
+
+loki.write "default" {
+  endpoint {
+    url = "{{ loki_push_url }}"
+  }
+
+  external_labels = {
+    host = "{{ inventory_hostname }}",
+  }
+}
+
+// systemd journal: system services, node_exporter, OpenVPN, K3s, kernel.
+loki.relabel "journal" {
+  forward_to = []
+
+  rule {
+    source_labels = ["__journal__systemd_unit"]
+    target_label  = "unit"
+  }
+
+  rule {
+    source_labels = ["__journal_priority_keyword"]
+    target_label  = "level"
+  }
+}
+
+loki.source.journal "system" {
+  relabel_rules = loki.relabel.journal.rules
+  labels        = { job = "journal" }
+  forward_to    = [loki.write.default.receiver]
+}
+{% if alloy_collect_docker %}
+
+// Docker containers (observability stack, Keycloak, workloads, OpenZiti,
+// NetBird). Discovery keeps retrying until a later component installs
+// Docker on this node, so deployment order does not matter.
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+discovery.relabel "containers" {
+  targets = []
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
+    target_label  = "compose_project"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "compose_service"
+  }
+}
+
+loki.source.docker "containers" {
+  host          = "unix:///var/run/docker.sock"
+  targets       = discovery.docker.containers.targets
+  relabel_rules = discovery.relabel.containers.rules
+  labels        = { job = "docker" }
+  forward_to    = [loki.write.default.receiver]
+}
+{% endif %}

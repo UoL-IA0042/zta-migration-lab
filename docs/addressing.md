@@ -9,7 +9,7 @@ journal.
 
 | Node | Address | Role |
 |---|---|---|
-| tpi2-1 | 10.0.0.71 | management, observability, DNS |
+| tpi2-1 | 10.0.0.71 | management, observability (Loki :3100), DNS |
 | tpi2-2 | 10.0.0.72 | identity (Keycloak :8080), ZT control planes |
 | tpi2-3 | 10.0.0.73 | protected workloads |
 | tpi2-4 | 10.0.0.74 | access gateways (OpenVPN :1194/udp) |
@@ -34,7 +34,7 @@ test-matrix expectations): `remote-admin`, `remote-developer`,
 - `ansible-openvpn/openvpn.yaml` (lab/AWS subnets, DNS)
 - `ansible-k3s/inventory.yaml`, `group_vars/all.yaml` (node IPs, MetalLB pool)
 - `ansible-keycloak/group_vars/all.yaml` (tpi2-2, roles, OIDC clients)
-- `ansible-observability/group_vars/all.yaml` (all node IPs)
+- `ansible-observability/group_vars/all.yaml` (all node IPs, Loki push URL)
 - `ansible-workloads/group_vars/all.yaml` (tpi2-3, role DB users)
 - `ansible-openziti/group_vars/all.yaml` (tpi2-2/tpi2-4, issuer, services)
 - `ansible-netbird/group_vars/all.yaml` (tpi2-2, issuer)

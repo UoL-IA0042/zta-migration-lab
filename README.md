@@ -20,7 +20,7 @@ documented in `docs/addressing.md`.
 
 | Directory | Purpose | Phase |
 |---|---|---|
-| `ansible-observability/` | Prometheus/Grafana/Loki (tpi2-1) + node_exporter (all) | 0 |
+| `ansible-observability/` | Prometheus/Grafana/Loki (tpi2-1) + node_exporter, Alloy (all) | 0 |
 | `ansible-keycloak/` | Identity provider, realm-as-code (tpi2-2) | 0 |
 | `ansible-workloads/` | Protected resources: postgres, web, SMB, legacy (tpi2-3) | 0 |
 | `terraform-aws/` | VPC, Graviton workloads, S3, per-role IAM | 0 |
