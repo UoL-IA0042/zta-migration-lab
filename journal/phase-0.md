@@ -84,3 +84,147 @@ of establishing the supporting base infrastructure to begin phase 1.
 
 ## 2026-10-04 12:00-12:15 | phase-0 | ansible-observability | coding
 Add Alloy deployment to all nodes and containers for log export to Loki.
+
+## 2026-10-04 13:00-12:30 | phase-0 | ansible-observability | deployment
+Attempted to deploy observability stack to nodes. Installation of
+`node_exporter` was successful on all nodes. Installation of
+prometheus on node 1 failed.
+
+```
+$ ansible-playbook -i inventory.yaml site.yaml
+[WARNING]: Deprecation warnings can be disabled by setting `deprecation_warnings=False` in ansible.cfg.
+[DEPRECATION WARNING]: ansible.builtin.apt_repository has been deprecated. Use deb822_repository instead. This feature will be removed from ansible-core version 2.25.
+Origin: /Users/<user>/dev/CYM500/zta-migration-lab/ansible-observability/site.yaml:118:7
+
+116
+117     - name: Add Grafana apt repository
+118       ansible.builtin.apt_repository:
+          ^ column 7
+
+
+PLAY [Install node_exporter on all nodes] ******************************************************************************************************************************************************
+
+TASK [Gathering Facts] *************************************************************************************************************************************************************************
+ok: [tpi2-3]
+ok: [tpi2-4]
+ok: [tpi2-2]
+ok: [tpi2-1]
+
+TASK [Install prometheus-node-exporter] ********************************************************************************************************************************************************
+changed: [tpi2-4]
+changed: [tpi2-2]
+changed: [tpi2-3]
+changed: [tpi2-1]
+
+TASK [Enable and start node_exporter] **********************************************************************************************************************************************************
+ok: [tpi2-1]
+ok: [tpi2-4]
+ok: [tpi2-2]
+ok: [tpi2-3]
+
+PLAY [Deploy observability stack on tpi2-1] ****************************************************************************************************************************************************
+
+TASK [Gathering Facts] *************************************************************************************************************************************************************************
+ok: [tpi2-1]
+
+TASK [Install Docker Engine and compose plugin] ************************************************************************************************************************************************
+changed: [tpi2-1]
+
+TASK [Enable and start Docker] *****************************************************************************************************************************************************************
+ok: [tpi2-1]
+
+TASK [Create install directory] ****************************************************************************************************************************************************************
+changed: [tpi2-1]
+
+TASK [Template Prometheus config] **************************************************************************************************************************************************************
+changed: [tpi2-1]
+
+TASK [Provision Grafana datasources (Prometheus + Loki)] ***************************************************************************************************************************************
+changed: [tpi2-1]
+
+TASK [Template compose file] *******************************************************************************************************************************************************************
+changed: [tpi2-1]
+
+TASK [Start stack] *****************************************************************************************************************************************************************************
+changed: [tpi2-1]
+
+TASK [Reload Prometheus on config change] ******************************************************************************************************************************************************
+changed: [tpi2-1]
+
+TASK [Wait for Prometheus readiness] ***********************************************************************************************************************************************************
+FAILED - RETRYING: [tpi2-1]: Wait for Prometheus readiness (11 retries left).
+FAILED - RETRYING: [tpi2-1]: Wait for Prometheus readiness (10 retries left).
+FAILED - RETRYING: [tpi2-1]: Wait for Prometheus readiness (9 retries left).
+FAILED - RETRYING: [tpi2-1]: Wait for Prometheus readiness (8 retries left).
+FAILED - RETRYING: [tpi2-1]: Wait for Prometheus readiness (7 retries left).
+FAILED - RETRYING: [tpi2-1]: Wait for Prometheus readiness (6 retries left).
+FAILED - RETRYING: [tpi2-1]: Wait for Prometheus readiness (5 retries left).
+FAILED - RETRYING: [tpi2-1]: Wait for Prometheus readiness (4 retries left).
+FAILED - RETRYING: [tpi2-1]: Wait for Prometheus readiness (3 retries left).
+FAILED - RETRYING: [tpi2-1]: Wait for Prometheus readiness (2 retries left).
+FAILED - RETRYING: [tpi2-1]: Wait for Prometheus readiness (1 retries left).
+FAILED - RETRYING: [tpi2-1]: Wait for Prometheus readiness (0 retries left).
+[ERROR]: Task failed: Module failed: Status code was -1 and not [200]: Request failed: <urlopen error [Errno 111] Connection refused>
+Origin: /Users/<user>/dev/CYM500/zta-migration-lab/ansible-observability/site.yaml:83:7
+
+81       when: prom_cfg.changed
+82
+83     - name: Wait for Prometheus readiness
+         ^ column 7
+
+fatal: [tpi2-1]: FAILED! => {"attempts": 12, "changed": false, "elapsed": 0, "msg": "Status code was -1 and not [200]: Request failed: <urlopen error [Errno 111] Connection refused>", "redirected": false, "status": -1, "url": "http://10.0.0.71:9090/-/ready"}
+
+PLAY RECAP *************************************************************************************************************************************************************************************
+tpi2-1                     : ok=12   changed=8    unreachable=0    failed=1    skipped=0    rescued=0    ignored=0
+tpi2-2                     : ok=3    changed=1    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0
+tpi2-3                     : ok=3    changed=1    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0
+tpi2-4                     : ok=3    changed=1    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0
+```
+
+Looking at the `docker` logs, there is this output.
+```
+ubuntu@tpi2-1:~$ sudo docker logs b432de766d91
+time=2026-10-04T20:13:55.748Z level=INFO source=main.go:1544 msg="updated GOGC" old=100 new=75
+time=2026-10-04T20:13:55.748Z level=INFO source=main.go:676 msg="Leaving GOMAXPROCS=8: CPU quota undefined" component=automaxprocs
+time=2026-10-04T20:13:55.749Z level=INFO source=memlimit.go:198 msg="GOMEMLIMIT is updated" component=automemlimit package=github.com/KimMachineGun/automemlimit/memlimit GOMEMLIMIT=29984713113 previous=9223372036854775807
+time=2026-10-04T20:13:55.749Z level=INFO source=main.go:769 msg="Starting Prometheus Server" mode=server version="(version=3.5.0, branch=HEAD, revision=8be3a9560fbdd18a94dedec4b747c35178177202)"
+time=2026-10-04T20:13:55.749Z level=INFO source=main.go:774 msg="operational information" build_context="(go=go1.24.5, platform=linux/arm64, user=root@4451b64cb451, date=20250714-16:18:17, tags=netgo,builtinassets)" host_details="(Linux 6.1.0-1025-rockchip #25-Ubuntu SMP Mon Aug 26 23:01:14 UTC 2024 aarch64 b432de766d91 (none))" fd_limits="(soft=524287, hard=524288)" vm_limits="(soft=unlimited, hard=unlimited)"
+time=2026-10-04T20:13:55.750Z level=ERROR source=query_logger.go:137 msg="Failed to create directory for logging active queries" component=activeQueryTracker
+time=2026-10-04T20:13:55.750Z level=ERROR source=query_logger.go:113 msg="Error opening query log file" component=activeQueryTracker file=/prometheus/data/queries.active err="open data/queries.active: no such file or directory"
+panic: Unable to create mmap-ed active query log
+
+goroutine 1 [running]:
+github.com/prometheus/prometheus/promql.NewActiveQueryTracker({0x3aa3f19, 0x5}, 0x14, 0x40006d2bb0)
+	/app/promql/query_logger.go:145 +0x260
+main.main()
+	/app/cmd/prometheus/main.go:854 +0x7354
+time=2026-10-04T20:13:56.615Z level=INFO source=main.go:1544 msg="updated GOGC" old=100 new=75
+time=2026-10-04T20:13:56.615Z level=INFO source=main.go:676 msg="Leaving GOMAXPROCS=8: CPU quota undefined" component=automaxprocs
+time=2026-10-04T20:13:56.615Z level=INFO source=memlimit.go:198 msg="GOMEMLIMIT is updated" component=automemlimit package=github.com/KimMachineGun/automemlimit/memlimit GOMEMLIMIT=29984713113 previous=9223372036854775807
+time=2026-10-04T20:13:56.615Z level=INFO source=main.go:769 msg="Starting Prometheus Server" mode=server version="(version=3.5.0, branch=HEAD, revision=8be3a9560fbdd18a94dedec4b747c35178177202)"
+time=2026-10-04T20:13:56.615Z level=INFO source=main.go:774 msg="operational information" build_context="(go=go1.24.5, platform=linux/arm64, user=root@4451b64cb451, date=20250714-16:18:17, tags=netgo,builtinassets)" host_details="(Linux 6.1.0-1025-rockchip #25-Ubuntu SMP Mon Aug 26 23:01:14 UTC 2024 aarch64 b432de766d91 (none))" fd_limits="(soft=524287, hard=524288)" vm_limits="(soft=unlimited, hard=unlimited)"
+time=2026-10-04T20:13:56.616Z level=ERROR source=query_logger.go:137 msg="Failed to create directory for logging active queries" component=activeQueryTracker
+time=2026-10-04T20:13:56.616Z level=ERROR source=query_logger.go:113 msg="Error opening query log file" component=activeQueryTracker file=/prometheus/data/queries.active err="open data/queries.active: no such file or directory"
+panic: Unable to create mmap-ed active query log
+
+goroutine 1 [running]:
+github.com/prometheus/prometheus/promql.NewActiveQueryTracker({0x3aa3f19, 0x5}, 0x14, 0x400067d940)
+	/app/promql/query_logger.go:145 +0x260
+main.main()
+	/app/cmd/prometheus/main.go:854 +0x7354
+time=2026-10-04T20:13:57.694Z level=INFO source=main.go:1544 msg="updated GOGC" old=100 new=75
+time=2026-10-04T20:13:57.694Z level=INFO source=main.go:676 msg="Leaving GOMAXPROCS=8: CPU quota undefined" component=automaxprocs
+time=2026-10-04T20:13:57.694Z level=INFO source=memlimit.go:198 msg="GOMEMLIMIT is updated" component=automemlimit package=github.com/KimMachineGun/automemlimit/memlimit GOMEMLIMIT=29984713113 previous=9223372036854775807
+time=2026-10-04T20:13:57.694Z level=INFO source=main.go:769 msg="Starting Prometheus Server" mode=server version="(version=3.5.0, branch=HEAD, revision=8be3a9560fbdd18a94dedec4b747c35178177202)"
+time=2026-10-04T20:13:57.694Z level=INFO source=main.go:774 msg="operational information" build_context="(go=go1.24.5, platform=linux/arm64, user=root@4451b64cb451, date=20250714-16:18:17, tags=netgo,builtinassets)" host_details="(Linux 6.1.0-1025-rockchip #25-Ubuntu SMP Mon Aug 26 23:01:14 UTC 2024 aarch64 b432de766d91 (none))" fd_limits="(soft=524287, hard=524288)" vm_limits="(soft=unlimited, hard=unlimited)"
+time=2026-10-04T20:13:57.695Z level=ERROR source=query_logger.go:137 msg="Failed to create directory for logging active queries" component=activeQueryTracker
+time=2026-10-04T20:13:57.695Z level=ERROR source=query_logger.go:113 msg="Error opening query log file" component=activeQueryTracker file=/prometheus/data/queries.active err="open data/queries.active: no such file or directory"
+panic: Unable to create mmap-ed active query log
+
+goroutine 1 [running]:
+github.com/prometheus/prometheus/promql.NewActiveQueryTracker({0x3aa3f19, 0x5}, 0x14, 0x4000155110)
+	/app/promql/query_logger.go:145 +0x260
+main.main()
+	/app/cmd/prometheus/main.go:854 +0x7354
+```
+ Need to debug the startup problem next.
