@@ -39,6 +39,23 @@
         state: directory
         mode: "0750"
 
+    # Bind-mount sources must exist with the container's UID before
+    # compose starts; otherwise Docker creates them root-owned and the
+    # non-root containers cannot write to them.
+    - name: Create data directories owned by each container's user
+      ansible.builtin.file:
+        path: "{{ obs_install_dir }}/{{ item.dir }}"
+        state: directory
+        owner: "{{ item.uid }}"
+        group: "{{ item.gid }}"
+        mode: "0750"
+      loop:
+        - {dir: prom-data, uid: 65534, gid: 65534}     # prom/prometheus runs as nobody
+        - {dir: loki-data, uid: 10001, gid: 10001}     # grafana/loki runs as loki
+        - {dir: grafana-data, uid: 472, gid: 0}        # grafana/grafana runs as grafana
+      loop_control:
+        label: "{{ item.dir }}"
+
     - name: Template Prometheus config
       ansible.builtin.template:
         src: templates/prometheus.yaml.j2

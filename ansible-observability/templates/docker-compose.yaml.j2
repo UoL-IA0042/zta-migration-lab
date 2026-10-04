@@ -4,6 +4,7 @@ services:
     restart: unless-stopped
     command:
       - --config.file=/etc/prometheus/prometheus.yaml
+      - --storage.tsdb.path=/prometheus      # overriding command drops the image default
       - --storage.tsdb.retention.time={{ prometheus_retention }}
     ports:
       - "9090:9090"
