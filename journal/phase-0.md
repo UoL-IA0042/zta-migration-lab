@@ -75,3 +75,9 @@ small-scale deployment pitfalls this research sets out to surface.
 Remaining verification queue: NVMe repartition + recovery install,
 end-to-end boot-switch test, one tpi flash streaming test at BMC
 2.0.5, capture/restore timing, hostname alignment.
+
+## 2026-10-04 11:00-11:30 | phase-0 | github-repo | coding and documentation
+Added the documentation, journal, and code to the github repo so
+as to start running experiments and establish a baseline from which
+to make changes and document the process, procedure, and outcomes
+of establishing the supporting base infrastructure to begin phase 1.
