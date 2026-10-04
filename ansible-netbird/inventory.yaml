@@ -1,0 +1,11 @@
+# NetBird self-hosted management stack on tpi2-2.
+---
+all:
+  children:
+    netbird:
+      hosts:
+        tpi2-2:
+          ansible_host: 10.0.0.72
+  vars:
+    ansible_user: ubuntu
+    ansible_python_interpreter: /usr/bin/python3

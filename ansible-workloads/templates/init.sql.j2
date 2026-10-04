@@ -1,0 +1,24 @@
+-- Per-role database users. Grants encode the intended least-privilege
+-- model probed by the test matrix:
+--   remote-admin:      read + write
+--   remote-developer:  read + write
+--   remote-analyst:    read only
+--   remote-contractor: no access (login works at DB level only if the
+--                      network lets them reach it; deny is enforced by
+--                      absent grants AND network policy)
+
+CREATE TABLE IF NOT EXISTS probe_writes (
+    id SERIAL PRIMARY KEY,
+    role TEXT NOT NULL,
+    at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+{% for role, password in db_role_passwords.items() %}
+CREATE USER "{{ role }}" WITH PASSWORD '{{ password }}';
+{% endfor %}
+
+GRANT SELECT, INSERT ON probe_writes TO "remote-admin", "remote-developer";
+GRANT USAGE, SELECT ON SEQUENCE probe_writes_id_seq TO "remote-admin", "remote-developer";
+GRANT SELECT ON probe_writes TO "remote-analyst";
+-- remote-contractor: no grants.
+REVOKE ALL ON probe_writes FROM "remote-contractor";

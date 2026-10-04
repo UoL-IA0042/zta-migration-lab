@@ -1,0 +1,17 @@
+# OpenZiti: controller on tpi2-2, edge router on tpi2-4.
+# The AWS-side router runs on an EC2 instance added in phase 2
+# (terraform-aws; add its address under ziti_routers when created).
+---
+all:
+  children:
+    ziti_controller:
+      hosts:
+        tpi2-2:
+          ansible_host: 10.0.0.72
+    ziti_routers:
+      hosts:
+        tpi2-4:
+          ansible_host: 10.0.0.74
+  vars:
+    ansible_user: ubuntu
+    ansible_python_interpreter: /usr/bin/python3

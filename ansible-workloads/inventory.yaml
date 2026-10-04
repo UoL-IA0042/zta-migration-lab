@@ -1,0 +1,11 @@
+# Protected workloads on tpi2-3.
+---
+all:
+  children:
+    workloads:
+      hosts:
+        tpi2-3:
+          ansible_host: 10.0.0.73
+  vars:
+    ansible_user: ubuntu
+    ansible_python_interpreter: /usr/bin/python3

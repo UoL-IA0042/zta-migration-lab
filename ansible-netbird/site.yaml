@@ -1,0 +1,59 @@
+# NetBird self-hosted management stack on tpi2-2, configured against the
+# lab Keycloak realm. Wraps NetBird's supported configure.sh flow.
+---
+- name: Deploy NetBird management stack
+  hosts: netbird
+  become: true
+  tasks:
+    - name: Install prerequisites
+      ansible.builtin.apt:
+        name: [docker.io, docker-compose-v2, jq, curl, git]
+        state: present
+        update_cache: true
+
+    - name: Enable and start Docker
+      ansible.builtin.systemd:
+        name: docker
+        enabled: true
+        state: started
+
+    - name: Fetch NetBird infrastructure files
+      ansible.builtin.git:
+        repo: "{{ netbird_repo }}"
+        dest: "{{ netbird_install_dir }}/src"
+        version: "{{ netbird_version if netbird_version != 'latest' else 'HEAD' }}"
+        depth: 1
+
+    - name: Write setup.env
+      ansible.builtin.copy:
+        dest: "{{ netbird_install_dir }}/src/infrastructure_files/setup.env"
+        mode: "0640"
+        content: |
+          {% for key, value in netbird_setup_env.items() %}
+          {{ key }}="{{ value }}"
+          {% endfor %}
+      register: setup_env
+
+    - name: Run configure.sh (renders compose + management.json)
+      ansible.builtin.command:
+        cmd: bash configure.sh
+        chdir: "{{ netbird_install_dir }}/src/infrastructure_files"
+      when: setup_env.changed
+      register: configured
+      changed_when: true
+
+    - name: Start NetBird stack
+      ansible.builtin.command:
+        cmd: docker compose up -d
+        chdir: "{{ netbird_install_dir }}/src/infrastructure_files/artifacts"
+      register: up
+      changed_when: "'Started' in up.stderr or 'Created' in up.stderr"
+
+    - name: Wait for management API
+      ansible.builtin.uri:
+        url: "http://{{ netbird_domain }}/api/accounts"
+        status_code: [200, 401]      # 401 = up but unauthenticated: fine
+      retries: 24
+      delay: 5
+      register: api
+      until: api.status in [200, 401]

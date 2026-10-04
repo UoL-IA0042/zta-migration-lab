@@ -1,0 +1,72 @@
+# Keycloak identity provider on tpi2-2, deployed as containers with the
+# realm imported declaratively at startup (realm-as-code).
+#
+# Run:
+#   ansible-playbook -i inventory.yaml site.yaml
+---
+- name: Deploy Keycloak with declarative realm
+  hosts: keycloak
+  become: true
+  tasks:
+    - name: Install Docker Engine and compose plugin
+      ansible.builtin.apt:
+        name:
+          - docker.io
+          - docker-compose-v2
+        state: present
+        update_cache: true
+
+    - name: Enable and start Docker
+      ansible.builtin.systemd:
+        name: docker
+        enabled: true
+        state: started
+
+    - name: Create install directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0750"
+      loop:
+        - "{{ keycloak_install_dir }}"
+        - "{{ keycloak_install_dir }}/import"
+
+    - name: Template realm definition (roles, users, OIDC clients)
+      ansible.builtin.template:
+        src: templates/realm-lab.json.j2
+        dest: "{{ keycloak_install_dir }}/import/{{ realm_name }}-realm.json"
+        mode: "0640"
+      register: realm_file
+
+    - name: Template compose file
+      ansible.builtin.template:
+        src: templates/docker-compose.yaml.j2
+        dest: "{{ keycloak_install_dir }}/docker-compose.yaml"
+        mode: "0640"
+      register: compose_file
+
+    - name: Start (or restart on config change) Keycloak stack
+      ansible.builtin.command:
+        cmd: docker compose up -d {{ '--force-recreate' if (realm_file.changed or compose_file.changed) else '' }}
+        chdir: "{{ keycloak_install_dir }}"
+      register: compose_up
+      changed_when: "'Started' in compose_up.stderr or 'Created' in compose_up.stderr or realm_file.changed"
+
+    - name: Wait for Keycloak health endpoint
+      ansible.builtin.uri:
+        url: "http://{{ keycloak_host }}:9000/health/ready"
+        status_code: 200
+      register: health
+      retries: 30
+      delay: 10
+      until: health.status == 200
+
+    - name: Verify realm import (OIDC discovery document)
+      ansible.builtin.uri:
+        url: "http://{{ keycloak_host }}:{{ keycloak_http_port }}/realms/{{ realm_name }}/.well-known/openid-configuration"
+        status_code: 200
+      register: oidc_discovery
+
+    - name: Report OIDC issuer for ZTNA integration
+      ansible.builtin.debug:
+        msg: "OIDC issuer: {{ oidc_discovery.json.issuer }}"

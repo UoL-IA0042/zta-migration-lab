@@ -1,0 +1,23 @@
+# Representative enterprise workloads on tpi2-3.
+---
+workloads_install_dir: /opt/workloads
+
+postgres_image: "postgres:16"
+nginx_image: "nginx:1.27"
+samba_image: "dperson/samba:latest"   # ARM64 multi-arch; VERIFY on RK1
+socat_image: "alpine/socat:latest"
+
+# Database: per-role users whose grants encode the INTENDED least-privilege
+# model. In Phase 1 the perimeter grants broad network reachability; the
+# DB grants below are the application-layer ground truth the test matrix
+# probes against.
+db_name: labdb
+db_superuser_password: "CHANGE-ME-USE-VAULT"
+db_role_passwords:
+  remote-admin: "CHANGE-ME-USE-VAULT"
+  remote-developer: "CHANGE-ME-USE-VAULT"
+  remote-analyst: "CHANGE-ME-USE-VAULT"
+  remote-contractor: "CHANGE-ME-USE-VAULT"
+
+samba_share_user: labfiles
+samba_share_password: "CHANGE-ME-USE-VAULT"

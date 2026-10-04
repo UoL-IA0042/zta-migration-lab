@@ -1,0 +1,38 @@
+services:
+  postgres:
+    image: postgres:{{ postgres_version }}
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: {{ keycloak_db_name }}
+      POSTGRES_USER: {{ keycloak_db_user }}
+      POSTGRES_PASSWORD: {{ keycloak_db_password }}
+    volumes:
+      - {{ keycloak_install_dir }}/pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U {{ keycloak_db_user }}"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:{{ keycloak_version }}
+    restart: unless-stopped
+    command: start --import-realm
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/{{ keycloak_db_name }}
+      KC_DB_USERNAME: {{ keycloak_db_user }}
+      KC_DB_PASSWORD: {{ keycloak_db_password }}
+      KC_BOOTSTRAP_ADMIN_USERNAME: {{ keycloak_admin_user }}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: {{ keycloak_admin_password }}
+      KC_HTTP_ENABLED: "true"
+      KC_HOSTNAME: "http://{{ keycloak_host }}:{{ keycloak_http_port }}"
+      KC_HEALTH_ENABLED: "true"
+    ports:
+      - "{{ keycloak_http_port }}:8080"
+      - "9000:9000"   # management/health interface
+    volumes:
+      - {{ keycloak_install_dir }}/import:/opt/keycloak/data/import:ro

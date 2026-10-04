@@ -1,0 +1,80 @@
+# Representative enterprise workloads on tpi2-3: PostgreSQL (per-role
+# grants), intranet web, SMB file service, and a deliberately legacy
+# unauthenticated TCP service.
+---
+- name: Deploy protected workloads
+  hosts: workloads
+  become: true
+  tasks:
+    - name: Install Docker Engine and compose plugin
+      ansible.builtin.apt:
+        name: [docker.io, docker-compose-v2]
+        state: present
+        update_cache: true
+
+    - name: Enable and start Docker
+      ansible.builtin.systemd:
+        name: docker
+        enabled: true
+        state: started
+
+    - name: Create directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - "{{ workloads_install_dir }}"
+        - "{{ workloads_install_dir }}/www"
+        - "{{ workloads_install_dir }}/share"
+
+    - name: Intranet web content
+      ansible.builtin.copy:
+        dest: "{{ workloads_install_dir }}/www/index.html"
+        mode: "0644"
+        content: |
+          <!doctype html><title>Lab Intranet</title>
+          <h1>Lab intranet application</h1><p>tpi2-3 workload.</p>
+
+    - name: Seed file share
+      ansible.builtin.copy:
+        dest: "{{ workloads_install_dir }}/share/README.txt"
+        mode: "0644"
+        content: "Lab file share seed object.\n"
+
+    - name: Template database init (per-role users and grants)
+      ansible.builtin.template:
+        src: templates/init.sql.j2
+        dest: "{{ workloads_install_dir }}/init.sql"
+        mode: "0640"
+
+    - name: Template compose file
+      ansible.builtin.template:
+        src: templates/docker-compose.yaml.j2
+        dest: "{{ workloads_install_dir }}/docker-compose.yaml"
+        mode: "0640"
+
+    - name: Start workloads
+      ansible.builtin.command:
+        cmd: docker compose up -d
+        chdir: "{{ workloads_install_dir }}"
+      register: up
+      changed_when: "'Started' in up.stderr or 'Created' in up.stderr"
+
+    - name: Verify intranet web responds
+      ansible.builtin.uri:
+        url: "http://{{ ansible_host }}:8080/"
+        status_code: 200
+      retries: 6
+      delay: 5
+      register: web
+      until: web.status == 200
+
+    - name: Verify postgres accepts connections
+      ansible.builtin.command:
+        cmd: docker exec workloads-postgres-1 pg_isready -U postgres
+      register: pg
+      retries: 6
+      delay: 5
+      until: pg.rc == 0
+      changed_when: false

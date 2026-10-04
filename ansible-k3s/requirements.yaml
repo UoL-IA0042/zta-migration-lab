@@ -1,0 +1,7 @@
+# Pinned dependencies for the K3s cluster deployment.
+# Install with:
+#   ansible-galaxy install -r requirements.yaml
+---
+collections:
+  - name: ansible.posix        # sysctl, mount
+  - name: community.general    # filesystem module

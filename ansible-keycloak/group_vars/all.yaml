@@ -1,0 +1,61 @@
+# Keycloak deployment configuration.
+# ALL secrets below are placeholders: encrypt real values with ansible-vault
+# before first run. Nothing secret belongs in the realm template itself.
+---
+# --- Versions (verified current 2026-08) ------------------------------
+keycloak_version: "26.7.3"
+postgres_version: "16"
+
+# --- Service ----------------------------------------------------------
+keycloak_host: 10.0.0.72        # tpi2-2
+keycloak_port: 8443
+keycloak_http_port: 8080           # plain HTTP on the lab network
+keycloak_install_dir: /opt/keycloak
+
+# Bootstrap admin (rotate after first login)
+keycloak_admin_user: admin
+keycloak_admin_password: "CHANGE-ME-USE-VAULT"
+
+# Backing database
+keycloak_db_name: keycloak
+keycloak_db_user: keycloak
+keycloak_db_password: "CHANGE-ME-USE-VAULT"
+
+# --- Realm-as-code ----------------------------------------------------
+realm_name: lab
+
+# The four experimental roles; must match the VPN client identities and
+# the test-matrix roles exactly, so results are comparable across phases.
+lab_roles:
+  - name: remote-admin
+    description: Full administrative access to lab resources
+  - name: remote-developer
+    description: Developer access to applications and databases
+  - name: remote-analyst
+    description: Read-only analytical access
+  - name: remote-contractor
+    description: Minimal contractor access
+
+# One test user per role (username == role for probe simplicity).
+# Passwords vaulted; exported to probing machines via environment.
+lab_users:
+  - username: remote-admin
+    password: "CHANGE-ME-USE-VAULT"
+  - username: remote-developer
+    password: "CHANGE-ME-USE-VAULT"
+  - username: remote-analyst
+    password: "CHANGE-ME-USE-VAULT"
+  - username: remote-contractor
+    password: "CHANGE-ME-USE-VAULT"
+
+# OIDC clients for the ZTNA control planes (Phase 2).
+oidc_clients:
+  - client_id: openziti
+    secret: "CHANGE-ME-USE-VAULT"
+    redirect_uris:
+      - "https://ziti.lab.example.com/*"
+  - client_id: netbird
+    secret: "CHANGE-ME-USE-VAULT"
+    redirect_uris:
+      - "https://netbird.lab.example.com/*"
+      - "http://localhost:53000/*"      # NetBird client loopback flow

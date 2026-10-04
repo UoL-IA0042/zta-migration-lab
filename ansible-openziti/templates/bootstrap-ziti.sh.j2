@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# Declarative bootstrap of the Ziti access model: ext-jwt-signer for
+# Keycloak, auth policy, service definitions, and bind/dial policies.
+# Idempotent-by-name: re-running skips entities that already exist.
+# Runs inside the controller container (ziti CLI available).
+set -euo pipefail
+
+ziti edge login https://{{ ziti_ctrl_advertised_address }}:{{ ziti_ctrl_port }} \
+  -u "{{ ziti_admin_user }}" -p "${ZITI_ADMIN_PASSWORD}" -y
+
+exists() { ziti edge list "$1" "name=\"$2\"" -j | grep -q '"name"'; }
+
+# --- External JWT signer: Keycloak ------------------------------------
+if ! exists ext-jwt-signers keycloak; then
+  ziti edge create ext-jwt-signer keycloak \
+    --issuer  "{{ keycloak_issuer }}" \
+    --audience "{{ keycloak_client_id }}" \
+    --jwks-endpoint "{{ keycloak_issuer }}/protocol/openid-connect/certs" \
+    --client-id "{{ keycloak_client_id }}" \
+    --claims-property "preferred_username" \
+    --external-auth-url "{{ keycloak_issuer }}"
+fi
+
+if ! exists auth-policies keycloak-only; then
+  SIGNER_ID=$(ziti edge list ext-jwt-signers 'name="keycloak"' -j \
+    | python3 -c 'import json,sys; print(json.load(sys.stdin)["data"][0]["id"])')
+  ziti edge create auth-policy keycloak-only \
+    --primary-ext-jwt-allowed \
+    --primary-ext-jwt-allowed-signers "$SIGNER_ID"
+fi
+
+# --- Identities (one per role, authenticated via Keycloak) ------------
+{% for role in lab_roles %}
+if ! exists identities "{{ role }}"; then
+  ziti edge create identity "{{ role }}" \
+    --auth-policy keycloak-only \
+    --external-id "{{ role }}" \
+    --role-attributes "{{ role }}"
+fi
+{% endfor %}
+
+# --- Services, configs, and policies ----------------------------------
+{% for svc in ziti_services %}
+if ! exists configs "{{ svc.name }}-host"; then
+  ziti edge create config "{{ svc.name }}-host" host.v1 \
+    '{"protocol":"tcp","address":"{{ svc.host }}","port":{{ svc.port }}}'
+  ziti edge create config "{{ svc.name }}-intercept" intercept.v1 \
+    '{"protocols":["tcp"],"addresses":["{{ svc.name }}.ziti"],"portRanges":[{"low":{{ svc.port }},"high":{{ svc.port }}}]}'
+fi
+if ! exists services "{{ svc.name }}"; then
+  ziti edge create service "{{ svc.name }}" \
+    --configs "{{ svc.name }}-host,{{ svc.name }}-intercept" \
+    --role-attributes "{{ svc.name }}"
+fi
+if ! exists service-policies "{{ svc.name }}-bind"; then
+  ziti edge create service-policy "{{ svc.name }}-bind" Bind \
+    --service-roles "#{{ svc.name }}" --identity-roles "#router"
+fi
+if ! exists service-policies "{{ svc.name }}-dial"; then
+  ziti edge create service-policy "{{ svc.name }}-dial" Dial \
+    --service-roles "#{{ svc.name }}" \
+    --identity-roles "{{ svc.dial_roles | map('regex_replace', '^', '#') | join(',') }}"
+fi
+{% endfor %}
+
+echo "Ziti access model bootstrapped."

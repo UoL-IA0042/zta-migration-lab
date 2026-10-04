@@ -1,0 +1,51 @@
+# OpenZiti configuration.
+# VERIFY the image tag against https://github.com/openziti/ziti/releases
+# at deployment time and record it in the journal.
+---
+ziti_image: "openziti/ziti-controller:1.6.5"     # VERIFY current release
+ziti_router_image: "openziti/ziti-router:1.6.5"  # keep in lockstep
+ziti_install_dir: /opt/openziti
+
+ziti_ctrl_advertised_address: 10.0.0.72
+ziti_ctrl_port: 1280
+ziti_router_port: 3022
+
+ziti_admin_user: admin
+ziti_admin_password: "CHANGE-ME-USE-VAULT"
+
+# Keycloak integration (ext-jwt-signer). Issuer must EXACTLY match the
+# value printed by ansible-keycloak's final task — trailing-slash exact.
+keycloak_issuer: "http://10.0.0.72:8080/realms/lab"
+keycloak_client_id: "openziti"
+
+# Roles double as Ziti identity/service-policy attributes.
+lab_roles:
+  - remote-admin
+  - remote-developer
+  - remote-analyst
+  - remote-contractor
+
+# Services: intended least-privilege model (mirrors phase-2 test matrix).
+# Each becomes a Ziti service + bind policy (router hosts it) + dial
+# policies for the roles listed.
+ziti_services:
+  - name: intranet-web
+    host: 10.0.0.73
+    port: 8080
+    dial_roles: [remote-admin, remote-developer, remote-analyst, remote-contractor]
+  - name: file-service
+    host: 10.0.0.73
+    port: 445
+    dial_roles: [remote-admin, remote-developer, remote-analyst]
+  - name: postgres
+    host: 10.0.0.73
+    port: 5432
+    dial_roles: [remote-admin, remote-developer, remote-analyst]
+  - name: legacy-service
+    host: 10.0.0.73
+    port: 8023
+    dial_roles: [remote-admin]          # segment-and-proxy: admin only
+  - name: aws-app
+    host: 10.100.10.10
+    port: 8080
+    dial_roles: [remote-admin, remote-developer, remote-analyst]

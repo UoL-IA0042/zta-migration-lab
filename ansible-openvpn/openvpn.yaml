@@ -1,0 +1,92 @@
+# Phase 1: perimeter baseline — OpenVPN remote-access server on tpi2-4.
+#
+# Deploys OpenVPN via the community role kyl191.openvpn (pinned in
+# requirements.yaml), issues client certificates for the emulated remote
+# workers, and fetches their .ovpn profiles to the control machine.
+#
+# Run:
+#   ansible-galaxy install -r requirements.yaml
+#   ansible-playbook -i inventory.yaml openvpn.yaml
+#
+# Split-tunnel configuration: clients are routed only to the lab and AWS
+# subnets, mirroring a typical enterprise remote-access VPN. Access control
+# in this phase is deliberately coarse (network-level reachability plus
+# firewall rules) — this ruleset is the documented "legacy" input artifact
+# for the Phase 3 rule-to-policy translation.
+---
+- name: Deploy perimeter-baseline OpenVPN server
+  hosts: vpn
+  become: true
+  gather_facts: true
+
+  vars:
+    # --- Lab addressing (adjust to your environment) -----------------
+    lab_onprem_network: 10.0.0.0
+    lab_onprem_netmask: 255.255.255.0
+    aws_vpc_network: 10.100.0.0
+    aws_vpc_netmask: 255.255.0.0
+    lab_dns_server: 10.0.0.71        # DNS on tpi2-1
+
+  roles:
+    - role: kyl191.openvpn
+      # --- Transport ------------------------------------------------
+      openvpn_port: 1194
+      openvpn_proto: udp
+      openvpn_dualstack: false
+      openvpn_server_network: 10.9.0.0
+      openvpn_server_netmask: 255.255.255.0
+      openvpn_server_ipv6_network: ""    # IPv4-only lab
+      openvpn_server_hostname: vpn.lab.example.com  # public name/IP clients dial
+
+      # --- Split tunnel: push only lab + AWS routes ------------------
+      openvpn_redirect_gateway: ""       # do not hijack client default route
+      openvpn_push:
+        - "route {{ lab_onprem_network }} {{ lab_onprem_netmask }}"
+        - "route {{ aws_vpc_network }} {{ aws_vpc_netmask }}"
+      openvpn_set_dns: true
+      openvpn_custom_dns:
+        - "{{ lab_dns_server }}"
+
+      # --- Behavior --------------------------------------------------
+      openvpn_client_to_client: false
+      openvpn_topology: subnet
+      openvpn_client_register_dns: false # no Windows clients in the lab
+
+      # --- Security --------------------------------------------------
+      openvpn_cipher: "AES-256-GCM"
+      openvpn_auth_alg: SHA256
+      openvpn_use_tls_crypt: true
+      openvpn_use_crl: true              # honor revocations
+      openvpn_sync_certs: true           # revoke anything not listed below
+      openvpn_verify_cn: false
+      openvpn_duplicate_cn: false
+      openvpn_client_cn_prefix: ""       # plain client names as CNs
+
+      # --- Clients: one per emulated remote-worker role --------------
+      # These identities deliberately mirror the roles used later in the
+      # ZTNA phases so access-test results are comparable across phases.
+      openvpn_clients:
+        - remote-admin
+        - remote-developer
+        - remote-analyst
+        - remote-contractor
+
+      # --- Fetch generated .ovpn profiles locally ---------------------
+      openvpn_fetch_client_configs: true
+      openvpn_fetch_client_configs_dir: "{{ lookup('env', 'HOME') }}/ovpn-client-configs"
+      openvpn_fetch_client_configs_per_user_dir: true
+
+      # --- Firewall / NAT --------------------------------------------
+      openvpn_firewall: ufw              # Ubuntu default
+      openvpn_manage_firewall_rules: true
+      openvpn_manage_sysctl: true        # enable IPv4 forwarding
+
+  post_tasks:
+    - name: Record deployed OpenVPN version (data collection)
+      ansible.builtin.command: openvpn --version
+      register: openvpn_version
+      changed_when: false
+
+    - name: Show version for the work journal
+      ansible.builtin.debug:
+        msg: "{{ openvpn_version.stdout_lines[0] }}"

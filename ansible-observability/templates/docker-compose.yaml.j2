@@ -1,0 +1,33 @@
+services:
+  prometheus:
+    image: {{ prometheus_image }}
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yaml
+      - --storage.tsdb.retention.time={{ prometheus_retention }}
+    ports:
+      - "9090:9090"
+    volumes:
+      - {{ obs_install_dir }}/prometheus.yaml:/etc/prometheus/prometheus.yaml:ro
+      - {{ obs_install_dir }}/prom-data:/prometheus
+
+  loki:
+    image: {{ loki_image }}
+    restart: unless-stopped
+    command: -config.file=/etc/loki/local-config.yaml
+    ports:
+      - "3100:3100"
+    volumes:
+      - {{ obs_install_dir }}/loki-data:/loki
+
+  grafana:
+    image: {{ grafana_image }}
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: {{ grafana_admin_user }}
+      GF_SECURITY_ADMIN_PASSWORD: {{ grafana_admin_password }}
+    ports:
+      - "3000:3000"
+    volumes:
+      - {{ obs_install_dir }}/grafana-data:/var/lib/grafana
+      - {{ obs_install_dir }}/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro

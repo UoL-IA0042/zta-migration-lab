@@ -1,0 +1,33 @@
+# Cluster configuration. All version pins verified current as of 2026-08;
+# update deliberately and re-tag the repo per experimental phase.
+---
+# --- Versions ---------------------------------------------------------
+k3s_version: "v1.36.4+k3s1"
+metallb_version: "v0.16.1"
+longhorn_version: "v1.12.1"
+
+# --- Cluster ----------------------------------------------------------
+# Shared join token. Generate once (e.g. `openssl rand -hex 32`) and store
+# with ansible-vault:  ansible-vault encrypt_string '<token>' --name k3s_token
+k3s_token: "CHANGE-ME-USE-VAULT"
+
+# Extra server args. For the Calico experiments, add:
+#   --flannel-backend=none --disable-network-policy --cluster-cidr=10.42.0.0/16
+k3s_server_extra_args: >-
+  --disable servicelb
+  --write-kubeconfig-mode 640
+
+# --- Load balancing (MetalLB, L2 mode) --------------------------------
+# A pool of addresses on the lab LAN, outside the DHCP range. Services of
+# type LoadBalancer receive VIPs from this pool, mirroring cloud ELB/NLB
+# behavior at the network level.
+metallb_pool_name: lab-pool
+metallb_pool_range: 192.168.1.200-192.168.1.220
+
+# --- Persistent storage (Longhorn on the per-node NVMe) ----------------
+# The 4TB NVMe on each node is formatted (once) and mounted here; Longhorn
+# replicates volumes across nodes, mirroring cloud block storage (EBS-like).
+nvme_device: /dev/nvme0n1
+nvme_fs: ext4
+longhorn_data_path: /mnt/longhorn
+longhorn_replica_count: 2

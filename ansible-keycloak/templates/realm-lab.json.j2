@@ -1,0 +1,66 @@
+{
+  "realm": "{{ realm_name }}",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "bruteForceProtected": true,
+  "roles": {
+    "realm": [
+{% for role in lab_roles %}
+      {
+        "name": "{{ role.name }}",
+        "description": "{{ role.description }}"
+      }{{ "," if not loop.last }}
+{% endfor %}
+    ]
+  },
+  "users": [
+{% for user in lab_users %}
+    {
+      "username": "{{ user.username }}",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "{{ user.username }}@lab.example.com",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "{{ user.password }}",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["{{ user.username }}"]
+    }{{ "," if not loop.last }}
+{% endfor %}
+  ],
+  "clients": [
+{% for client in oidc_clients %}
+    {
+      "clientId": "{{ client.client_id }}",
+      "protocol": "openid-connect",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "{{ client.secret }}",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": {{ client.redirect_uris | to_json }},
+      "webOrigins": ["+"],
+      "defaultClientScopes": ["openid", "profile", "email", "roles"],
+      "protocolMappers": [
+        {
+          "name": "realm-roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "config": {
+            "claim.name": "roles",
+            "jsonType.label": "String",
+            "multivalued": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    }{{ "," if not loop.last }}
+{% endfor %}
+  ]
+}

@@ -1,0 +1,43 @@
+services:
+  postgres:
+    image: {{ postgres_image }}
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: {{ db_name }}
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: {{ db_superuser_password }}
+    ports:
+      - "5432:5432"
+    volumes:
+      - {{ workloads_install_dir }}/pgdata:/var/lib/postgresql/data
+      - {{ workloads_install_dir }}/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
+  intranet-web:
+    image: {{ nginx_image }}
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - {{ workloads_install_dir }}/www:/usr/share/nginx/html:ro
+
+  file-service:
+    image: {{ samba_image }}
+    restart: unless-stopped
+    ports:
+      - "445:445"
+    command: >-
+      -u "{{ samba_share_user }};{{ samba_share_password }}"
+      -s "labshare;/share;yes;no;no;{{ samba_share_user }}"
+    volumes:
+      - {{ workloads_install_dir }}/share:/share
+
+  # Deliberately legacy: cleartext TCP, no authentication. Exercises the
+  # segment-and-proxy pattern for RBAC-incapable systems in later phases.
+  legacy-service:
+    image: {{ socat_image }}
+    restart: unless-stopped
+    ports:
+      - "8023:8023"
+    command: >-
+      TCP-LISTEN:8023,fork,reuseaddr
+      SYSTEM:'echo LEGACY-SERVICE-OK'

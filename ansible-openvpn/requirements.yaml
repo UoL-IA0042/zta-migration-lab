@@ -1,0 +1,11 @@
+# Pinned dependencies for the Phase 1 perimeter baseline deployment.
+# Install with:
+#   ansible-galaxy install -r requirements.yaml
+---
+roles:
+  - name: kyl191.openvpn
+    version: "3.0.1"  # pin for reproducibility; update deliberately and re-tag
+
+collections:
+  - name: ansible.posix
+  - name: community.general

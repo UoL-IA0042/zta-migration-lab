@@ -1,0 +1,171 @@
+# Bare-metal K3s cluster with MetalLB (cloud-like load balancing) and
+# Longhorn (cloud-like replicated persistent storage) on the Turing Pi 2.
+#
+# Run:
+#   ansible-galaxy install -r requirements.yaml
+#   ansible-playbook -i inventory.yaml site.yaml
+---
+# ----------------------------------------------------------------------
+# Play 1: prepare all nodes
+# ----------------------------------------------------------------------
+- name: Prepare cluster nodes
+  hosts: k3s_cluster
+  become: true
+  tasks:
+    - name: Install prerequisites (Longhorn requires open-iscsi)
+      ansible.builtin.apt:
+        name:
+          - curl
+          - open-iscsi
+          - nfs-common
+          - util-linux
+        state: present
+        update_cache: true
+
+    - name: Enable and start iscsid
+      ansible.builtin.systemd:
+        name: iscsid
+        enabled: true
+        state: started
+
+    - name: Enable IPv4 forwarding
+      ansible.posix.sysctl:
+        name: net.ipv4.ip_forward
+        value: "1"
+        state: present
+        reload: true
+
+    - name: Create filesystem on NVMe (no-op if already formatted)
+      community.general.filesystem:
+        fstype: "{{ nvme_fs }}"
+        dev: "{{ nvme_device }}"
+        # NOTE: never forces; an existing filesystem is left untouched.
+
+    - name: Mount NVMe for Longhorn data
+      ansible.posix.mount:
+        path: "{{ longhorn_data_path }}"
+        src: "{{ nvme_device }}"
+        fstype: "{{ nvme_fs }}"
+        opts: defaults,noatime
+        state: mounted
+
+# ----------------------------------------------------------------------
+# Play 2: K3s server (control plane)
+# ----------------------------------------------------------------------
+- name: Install K3s server
+  hosts: k3s_server
+  become: true
+  tasks:
+    - name: Download K3s install script
+      ansible.builtin.get_url:
+        url: https://get.k3s.io
+        dest: /usr/local/bin/k3s-install.sh
+        mode: "0755"
+
+    - name: Install K3s server
+      ansible.builtin.command: /usr/local/bin/k3s-install.sh
+      environment:
+        INSTALL_K3S_VERSION: "{{ k3s_version }}"
+        K3S_TOKEN: "{{ k3s_token }}"
+        INSTALL_K3S_EXEC: "server {{ k3s_server_extra_args }}"
+      args:
+        creates: /usr/local/bin/k3s
+
+    - name: Wait for node token
+      ansible.builtin.wait_for:
+        path: /var/lib/rancher/k3s/server/node-token
+        timeout: 120
+
+# ----------------------------------------------------------------------
+# Play 3: K3s agents
+# ----------------------------------------------------------------------
+- name: Install K3s agents
+  hosts: k3s_agents
+  become: true
+  tasks:
+    - name: Download K3s install script
+      ansible.builtin.get_url:
+        url: https://get.k3s.io
+        dest: /usr/local/bin/k3s-install.sh
+        mode: "0755"
+
+    - name: Install K3s agent
+      ansible.builtin.command: /usr/local/bin/k3s-install.sh
+      environment:
+        INSTALL_K3S_VERSION: "{{ k3s_version }}"
+        K3S_TOKEN: "{{ k3s_token }}"
+        K3S_URL: "https://{{ hostvars[groups['k3s_server'][0]].ansible_host }}:6443"
+      args:
+        creates: /usr/local/bin/k3s
+
+# ----------------------------------------------------------------------
+# Play 4: cluster addons (run on the server via kubectl)
+# ----------------------------------------------------------------------
+- name: Deploy MetalLB and Longhorn
+  hosts: k3s_server
+  become: true
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  tasks:
+    - name: Wait for all nodes to be Ready
+      ansible.builtin.shell: |
+        kubectl wait --for=condition=Ready nodes --all --timeout=300s
+      changed_when: false
+
+    # --- MetalLB: cloud-style LoadBalancer services -------------------
+    - name: Apply MetalLB manifests
+      ansible.builtin.command: >
+        kubectl apply -f
+        https://raw.githubusercontent.com/metallb/metallb/{{ metallb_version }}/config/manifests/metallb-native.yaml
+      register: metallb_apply
+      changed_when: "'created' in metallb_apply.stdout or 'configured' in metallb_apply.stdout"
+
+    - name: Wait for MetalLB controller
+      ansible.builtin.shell: |
+        kubectl wait --namespace metallb-system --for=condition=Available \
+          deployment/controller --timeout=300s
+      changed_when: false
+
+    - name: Template MetalLB address pool
+      ansible.builtin.template:
+        src: templates/metallb-pool.yaml.j2
+        dest: /var/lib/rancher/k3s/server/manifests-src/metallb-pool.yaml
+        mode: "0644"
+
+    - name: Apply MetalLB address pool and L2 advertisement
+      ansible.builtin.command: >
+        kubectl apply -f /var/lib/rancher/k3s/server/manifests-src/metallb-pool.yaml
+      register: pool_apply
+      changed_when: "'created' in pool_apply.stdout or 'configured' in pool_apply.stdout"
+
+    # --- Longhorn: replicated persistent volumes ----------------------
+    - name: Apply Longhorn manifests
+      ansible.builtin.command: >
+        kubectl apply -f
+        https://raw.githubusercontent.com/longhorn/longhorn/{{ longhorn_version }}/deploy/longhorn.yaml
+      register: longhorn_apply
+      changed_when: "'created' in longhorn_apply.stdout or 'configured' in longhorn_apply.stdout"
+
+    - name: Point Longhorn at the NVMe mount and set replica count
+      ansible.builtin.shell: |
+        kubectl -n longhorn-system patch settings.longhorn.io default-data-path \
+          --type merge -p '{"value":"{{ longhorn_data_path }}"}'
+        kubectl -n longhorn-system patch settings.longhorn.io default-replica-count \
+          --type merge -p '{"value":"{{ longhorn_replica_count }}"}'
+      register: lh_settings
+      changed_when: "'patched' in lh_settings.stdout"
+      retries: 10
+      delay: 30
+      until: lh_settings.rc == 0
+
+    - name: Make Longhorn the default StorageClass
+      ansible.builtin.shell: |
+        kubectl patch storageclass local-path -p \
+          '{"metadata":{"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}'
+        kubectl patch storageclass longhorn -p \
+          '{"metadata":{"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+      register: sc_patch
+      changed_when: "'patched' in sc_patch.stdout"
+      retries: 10
+      delay: 30
+      until: sc_patch.rc == 0
