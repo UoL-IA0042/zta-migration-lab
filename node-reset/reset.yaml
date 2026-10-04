@@ -1,0 +1,144 @@
+# Clean-state node reset — design verified against U-Boot behavior:
+# boot_targets scans NVMe BEFORE the eMMC, and the environment is
+# compiled-in (ENV_IS_NOWHERE). The boot switch is therefore the
+# presence of extlinux.conf on the recovery partition:
+#
+#   normal:   recovery extlinux DISABLED -> scan falls through to eMMC main
+#   reset:    main enables recovery extlinux -> reboot -> recovery boots
+#             (NVMe wins the scan) -> restore main root -> recovery
+#             disables its own extlinux -> reboot -> main boots
+#
+# Main's /boot/extlinux is never modified. A corrupted eMMC root has no
+# automatic failover (recovery is deliberately unbootable in normal
+# operation): escalate out-of-band with tpi flash (BMC 2.0.5 streams
+# the image from the workstation).
+#
+#   ansible-playbook -i inventory.yaml reset.yaml -l tpi2-3
+---
+- name: Reset node to golden state
+  hosts: turingpi
+  become: true
+  serial: 1
+  tasks:
+    # ------------------------------------------------------ to recovery
+    - name: Mount recovery partition (from main OS)
+      ansible.posix.mount:
+        path: "{{ recovery_mount }}"
+        src: "{{ recovery_root_part }}"
+        fstype: ext4
+        state: mounted
+      tags: [to-recovery]
+
+    - name: Check recovery extlinux state
+      ansible.builtin.stat:
+        path: "{{ recovery_mount }}{{ recovery_extlinux_dir }}/extlinux.conf.disabled"
+      register: disabled_conf
+      tags: [to-recovery]
+
+    - name: Assert recovery extlinux exists (enabled or disabled)
+      ansible.builtin.stat:
+        path: "{{ recovery_mount }}{{ recovery_extlinux_dir }}/extlinux.conf"
+      register: enabled_conf
+      failed_when: not (disabled_conf.stat.exists or enabled_conf.stat.exists)
+      tags: [to-recovery]
+
+    - name: Enable recovery boot (rename extlinux.conf into place)
+      ansible.builtin.command:
+        cmd: >
+          mv {{ recovery_mount }}{{ recovery_extlinux_dir }}/extlinux.conf.disabled
+             {{ recovery_mount }}{{ recovery_extlinux_dir }}/extlinux.conf
+      when: disabled_conf.stat.exists
+      tags: [to-recovery]
+
+    - name: Unmount recovery partition
+      ansible.posix.mount:
+        path: "{{ recovery_mount }}"
+        state: unmounted
+      tags: [to-recovery]
+
+    - name: Reboot into recovery OS (NVMe wins the boot scan)
+      ansible.builtin.reboot:
+        reboot_timeout: 300
+      tags: [to-recovery]
+
+    - name: Confirm recovery OS (root on NVMe, eMMC root unmounted)
+      ansible.builtin.shell: |
+        findmnt -n -o SOURCE / | grep -q "{{ recovery_root_part }}" && \
+        ! findmnt -S {{ main_root_part }}
+      changed_when: false
+      tags: [to-recovery]
+
+    # --------------------------------------------------------- restore
+    - name: Verify golden image checksum
+      ansible.builtin.shell: |
+        cd {{ data_mount }}/golden && sha256sum -c rootfs.sha256
+      changed_when: false
+      tags: [restore]
+
+    - name: Restore golden image onto eMMC root partition
+      ansible.builtin.shell: |
+        set -o pipefail
+        zstd -dc {{ golden_image_path }} | dd of={{ main_root_part }} bs=4M conv=fsync
+      register: restore
+      changed_when: true
+      tags: [restore]
+
+    - name: Run filesystem check on restored root
+      ansible.builtin.command: e2fsck -fy {{ main_root_part }}
+      register: fsck
+      failed_when: fsck.rc >= 4
+      changed_when: fsck.rc in [1, 2]
+      tags: [restore]
+
+    - name: Mount restored root and confirm it is bootable
+      ansible.posix.mount:
+        path: "{{ main_root_mount }}"
+        src: "{{ main_root_part }}"
+        fstype: ext4
+        state: mounted
+      tags: [restore]
+
+    - name: Confirm restored extlinux.conf present on main root
+      ansible.builtin.stat:
+        path: "{{ main_root_mount }}/boot/extlinux/extlinux.conf"
+      register: main_conf
+      failed_when: not main_conf.stat.exists
+      tags: [restore]
+
+    - name: Unmount restored root
+      ansible.posix.mount:
+        path: "{{ main_root_mount }}"
+        state: unmounted
+      tags: [restore]
+
+    # ------------------------------------------------ back to main OS
+    - name: Disable recovery boot (recovery renames its own extlinux)
+      ansible.builtin.command:
+        cmd: >
+          mv {{ recovery_extlinux_dir }}/extlinux.conf
+             {{ recovery_extlinux_dir }}/extlinux.conf.disabled
+      tags: [to-main]
+
+    - name: Reboot into restored main OS (scan falls through to eMMC)
+      ansible.builtin.reboot:
+        reboot_timeout: 300
+      tags: [to-main]
+
+    # ---------------------------------------------------------- verify
+    - name: Verify main OS booted from eMMC
+      ansible.builtin.command: findmnt -n -o SOURCE /
+      register: rootsrc
+      failed_when: main_root_part not in rootsrc.stdout
+      changed_when: false
+      tags: [verify]
+
+    - name: Read golden image provenance marker
+      ansible.builtin.command: cat {{ golden_marker }}
+      register: marker
+      changed_when: false
+      tags: [verify]
+
+    - name: Report reset provenance (journal this)
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }} restored to golden: {{ marker.stdout }}"
+      tags: [verify]

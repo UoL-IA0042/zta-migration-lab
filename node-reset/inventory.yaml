@@ -1,0 +1,20 @@
+# Same four nodes; reset one at a time with --limit (e.g. -l tpi2-3).
+# Both main and recovery OS answer on the same address with the same
+# ansible_user; host keys differ between the two OSes, hence the
+# accept-new setting (lab network only — do not carry this pattern to
+# production inventories).
+---
+all:
+  children:
+    turingpi:
+      hosts:
+        tpi2-1: {ansible_host: 10.0.0.71}
+        tpi2-2: {ansible_host: 10.0.0.72}
+        tpi2-3: {ansible_host: 10.0.0.73}
+        tpi2-4: {ansible_host: 10.0.0.74}
+  vars:
+    ansible_user: ubuntu
+    ansible_python_interpreter: /usr/bin/python3
+    ansible_ssh_common_args: >-
+      -o StrictHostKeyChecking=accept-new
+      -o UserKnownHostsFile=/dev/null

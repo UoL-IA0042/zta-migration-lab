@@ -1,0 +1,37 @@
+# Node reset configuration — verified against hardware:
+#
+#   U-Boot 2024.01, bootcmd="bootflow scan",
+#   boot_targets="mmc1 nvme scsi usb mmc0 pxe dhcp spi"  (journaled)
+#   -> NVMe is scanned BEFORE the eMMC (mmc0); env is ENV_IS_NOWHERE
+#      (compiled-in, not changeable).
+#
+# Boot switch therefore = presence of extlinux.conf on the RECOVERY
+# partition: normally disabled (renamed), so the scan falls through to
+# the eMMC main OS. Enabling it makes the next boot recovery. Main's
+# own /boot/extlinux is NEVER modified.
+#
+# Layout:
+#   /dev/mmcblk0p1  vfat  CIDATA           cloud-init NoCloud seed
+#   /dev/mmcblk0p2  ext4  cloudimg-rootfs  main OS root (restore target)
+#   /dev/nvme0n1p1  ext4                   recovery OS root (16G)
+#   /dev/nvme0n1p2  ext4                   /data (golden image, Longhorn)
+---
+# Main OS (eMMC)
+main_root_part: /dev/mmcblk0p2
+cidata_part: /dev/mmcblk0p1
+
+# Recovery OS (NVMe) and its extlinux boot switch
+recovery_root_part: /dev/nvme0n1p1
+recovery_mount: /mnt/recovery                # where MAIN mounts recovery p1
+recovery_extlinux_dir: /boot/extlinux        # path within the recovery fs
+
+# Data partition (NVMe)
+data_part: /dev/nvme0n1p2
+data_mount: /data
+golden_image_path: /data/golden/rootfs.img.zst
+
+# Mount point used by the recovery OS to inspect the restored main root
+main_root_mount: /mnt/main-root
+
+# Provenance marker baked into the golden image
+golden_marker: /etc/golden-image-release
