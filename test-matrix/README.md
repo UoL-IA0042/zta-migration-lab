@@ -29,6 +29,12 @@ Credentials are supplied ambiently on the probing machine (PGPASSWORD,
 AWS profiles named after roles, bearer tokens via `auth_token_env`) —
 never in the matrix file, which is committed.
 
+Per-environment values are supplied the same way: `exec` commands may
+reference `$VAR` / `${VAR}`, expanded from the environment, and an unset
+variable yields ERROR rather than a silent deny. Currently required:
+`LAB_DATA_BUCKET` (the S3 bucket name, from `terraform output -raw
+data_bucket` in `terraform-aws/`).
+
 ## Probe semantics
 
 | Type | allow | deny |

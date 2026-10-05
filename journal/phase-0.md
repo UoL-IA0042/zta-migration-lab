@@ -338,3 +338,1559 @@ ok: [tpi2-3]
 PLAY RECAP **********************************************************************************************************************************************************************************************
 tpi2-3                     : ok=11   changed=6    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0 
 ```
+
+## 2026-10-04 21:45-22:45 | phase-0 | terraform-aws | deployment
+Deploy AWS resources to AWS account using terraform. Some modififications
+to the code were needed to ensure the S3 bucket is globally unique, so
+those are included with this update.
+
+`terraform init` output
+```
+<user>$ tf init
+Initializing the backend...
+
+Initializing provider plugins...
+- Finding hashicorp/aws versions matching "~> 6.0"...
+- Finding hashicorp/random versions matching "~> 3.6"...
+- Installing hashicorp/random v3.9.1...
+- Installed hashicorp/random v3.9.1 (signed by HashiCorp)
+- Installing hashicorp/aws v6.67.0...
+- Installed hashicorp/aws v6.67.0 (signed by HashiCorp)
+
+Terraform has created a lock file .terraform.lock.hcl to record the provider
+selections it made above. Include this file in your version control repository
+so that Terraform can guarantee to make the same selections by default when
+you run "terraform init" in the future.
+
+Terraform has been successfully initialized!
+
+You may now begin working with Terraform. Try running "terraform plan" to see
+any changes that are required for your infrastructure. All Terraform commands
+should now work.
+
+If you ever set or change modules or backend configuration for Terraform,
+rerun this command to reinitialize your working directory. If you forget, other
+commands will detect it and remind you to do so if necessary.
+```
+
+`terraform plan -var ssh_key_name=UoL-IA0042` output
+```
+$ tf plan -var ssh_key_name=UoL-IA0042
+data.aws_ami.ubuntu_arm64: Reading...
+data.aws_ami.ubuntu_arm64: Read complete after 0s [id=ami-06c11807f6c511068]
+
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:
+  + create
+ <= read (data resources)
+
+Terraform will perform the following actions:
+
+  # data.aws_iam_policy_document.s3_read will be read during apply
+  # (config refers to values not yet known)
+ <= data "aws_iam_policy_document" "s3_read" {
+      + id            = (known after apply)
+      + json          = (known after apply)
+      + minified_json = (known after apply)
+
+      + statement {
+          + actions   = [
+              + "s3:GetObject",
+              + "s3:ListBucket",
+            ]
+          + resources = [
+              + (known after apply),
+              + (known after apply),
+            ]
+        }
+    }
+
+  # data.aws_iam_policy_document.s3_write will be read during apply
+  # (config refers to values not yet known)
+ <= data "aws_iam_policy_document" "s3_write" {
+      + id            = (known after apply)
+      + json          = (known after apply)
+      + minified_json = (known after apply)
+
+      + statement {
+          + actions   = [
+              + "s3:PutObject",
+            ]
+          + resources = [
+              + (known after apply),
+            ]
+        }
+    }
+
+  # aws_iam_policy.s3_read will be created
+  + resource "aws_iam_policy" "s3_read" {
+      + arn              = (known after apply)
+      + attachment_count = (known after apply)
+      + id               = (known after apply)
+      + name             = "zta-lab-s3-read"
+      + name_prefix      = (known after apply)
+      + path             = "/"
+      + policy           = (known after apply)
+      + policy_id        = (known after apply)
+      + tags_all         = {
+          + "Managed" = "terraform"
+          + "Project" = "zta-migration-lab"
+        }
+    }
+
+  # aws_iam_policy.s3_write will be created
+  + resource "aws_iam_policy" "s3_write" {
+      + arn              = (known after apply)
+      + attachment_count = (known after apply)
+      + id               = (known after apply)
+      + name             = "zta-lab-s3-write"
+      + name_prefix      = (known after apply)
+      + path             = "/"
+      + policy           = (known after apply)
+      + policy_id        = (known after apply)
+      + tags_all         = {
+          + "Managed" = "terraform"
+          + "Project" = "zta-migration-lab"
+        }
+    }
+
+  # aws_iam_user.role_users["remote-admin"] will be created
+  + resource "aws_iam_user" "role_users" {
+      + arn           = (known after apply)
+      + force_destroy = false
+      + id            = (known after apply)
+      + name          = "remote-admin"
+      + path          = "/"
+      + tags          = {
+          + "Purpose" = "access-matrix-probe"
+        }
+      + tags_all      = {
+          + "Managed" = "terraform"
+          + "Project" = "zta-migration-lab"
+          + "Purpose" = "access-matrix-probe"
+        }
+      + unique_id     = (known after apply)
+    }
+
+  # aws_iam_user.role_users["remote-analyst"] will be created
+  + resource "aws_iam_user" "role_users" {
+      + arn           = (known after apply)
+      + force_destroy = false
+      + id            = (known after apply)
+      + name          = "remote-analyst"
+      + path          = "/"
+      + tags          = {
+          + "Purpose" = "access-matrix-probe"
+        }
+      + tags_all      = {
+          + "Managed" = "terraform"
+          + "Project" = "zta-migration-lab"
+          + "Purpose" = "access-matrix-probe"
+        }
+      + unique_id     = (known after apply)
+    }
+
+  # aws_iam_user.role_users["remote-contractor"] will be created
+  + resource "aws_iam_user" "role_users" {
+      + arn           = (known after apply)
+      + force_destroy = false
+      + id            = (known after apply)
+      + name          = "remote-contractor"
+      + path          = "/"
+      + tags          = {
+          + "Purpose" = "access-matrix-probe"
+        }
+      + tags_all      = {
+          + "Managed" = "terraform"
+          + "Project" = "zta-migration-lab"
+          + "Purpose" = "access-matrix-probe"
+        }
+      + unique_id     = (known after apply)
+    }
+
+  # aws_iam_user.role_users["remote-developer"] will be created
+  + resource "aws_iam_user" "role_users" {
+      + arn           = (known after apply)
+      + force_destroy = false
+      + id            = (known after apply)
+      + name          = "remote-developer"
+      + path          = "/"
+      + tags          = {
+          + "Purpose" = "access-matrix-probe"
+        }
+      + tags_all      = {
+          + "Managed" = "terraform"
+          + "Project" = "zta-migration-lab"
+          + "Purpose" = "access-matrix-probe"
+        }
+      + unique_id     = (known after apply)
+    }
+
+  # aws_iam_user_policy_attachment.read["remote-admin"] will be created
+  + resource "aws_iam_user_policy_attachment" "read" {
+      + id         = (known after apply)
+      + policy_arn = (known after apply)
+      + user       = "remote-admin"
+    }
+
+  # aws_iam_user_policy_attachment.read["remote-analyst"] will be created
+  + resource "aws_iam_user_policy_attachment" "read" {
+      + id         = (known after apply)
+      + policy_arn = (known after apply)
+      + user       = "remote-analyst"
+    }
+
+  # aws_iam_user_policy_attachment.read["remote-developer"] will be created
+  + resource "aws_iam_user_policy_attachment" "read" {
+      + id         = (known after apply)
+      + policy_arn = (known after apply)
+      + user       = "remote-developer"
+    }
+
+  # aws_iam_user_policy_attachment.write["remote-admin"] will be created
+  + resource "aws_iam_user_policy_attachment" "write" {
+      + id         = (known after apply)
+      + policy_arn = (known after apply)
+      + user       = "remote-admin"
+    }
+
+  # aws_instance.app will be created
+  + resource "aws_instance" "app" {
+      + ami                                  = "ami-06c11807f6c511068"
+      + arn                                  = (known after apply)
+      + associate_public_ip_address          = (known after apply)
+      + availability_zone                    = (known after apply)
+      + disable_api_stop                     = (known after apply)
+      + disable_api_termination              = (known after apply)
+      + ebs_optimized                        = (known after apply)
+      + enable_primary_ipv6                  = (known after apply)
+      + force_destroy                        = false
+      + get_password_data                    = false
+      + host_id                              = (known after apply)
+      + host_resource_group_arn              = (known after apply)
+      + iam_instance_profile                 = (known after apply)
+      + id                                   = (known after apply)
+      + instance_initiated_shutdown_behavior = (known after apply)
+      + instance_lifecycle                   = (known after apply)
+      + instance_state                       = (known after apply)
+      + instance_type                        = "t4g.micro"
+      + ipv6_address_count                   = (known after apply)
+      + ipv6_addresses                       = (known after apply)
+      + key_name                             = "UoL-IA0042"
+      + monitoring                           = (known after apply)
+      + outpost_arn                          = (known after apply)
+      + password_data                        = (known after apply)
+      + placement_group                      = (known after apply)
+      + placement_group_id                   = (known after apply)
+      + placement_partition_number           = (known after apply)
+      + primary_network_interface_id         = (known after apply)
+      + private_dns                          = (known after apply)
+      + private_ip                           = "10.100.10.10"
+      + public_dns                           = (known after apply)
+      + public_ip                            = (known after apply)
+      + region                               = "us-west-2"
+      + secondary_private_ips                = (known after apply)
+      + security_groups                      = (known after apply)
+      + source_dest_check                    = true
+      + spot_instance_request_id             = (known after apply)
+      + subnet_id                            = (known after apply)
+      + tags                                 = {
+          + "Name" = "zta-lab-app"
+        }
+      + tags_all                             = {
+          + "Managed" = "terraform"
+          + "Name"    = "zta-lab-app"
+          + "Project" = "zta-migration-lab"
+        }
+      + tenancy                              = (known after apply)
+      + user_data                            = <<-EOT
+            #!/bin/bash
+            apt-get update && apt-get install -y nginx
+            sed -i 's/listen 80/listen 8080/' /etc/nginx/sites-available/default
+            echo '<h1>AWS lab application</h1>' > /var/www/html/index.html
+            systemctl restart nginx
+        EOT
+      + user_data_base64                     = (known after apply)
+      + user_data_replace_on_change          = false
+      + vpc_security_group_ids               = (known after apply)
+
+      + capacity_reservation_specification (known after apply)
+
+      + cpu_options (known after apply)
+
+      + ebs_block_device (known after apply)
+
+      + enclave_options (known after apply)
+
+      + ephemeral_block_device (known after apply)
+
+      + instance_market_options (known after apply)
+
+      + maintenance_options (known after apply)
+
+      + metadata_options (known after apply)
+
+      + network_interface (known after apply)
+
+      + primary_network_interface (known after apply)
+
+      + private_dns_name_options (known after apply)
+
+      + root_block_device (known after apply)
+
+      + secondary_network_interface (known after apply)
+    }
+
+  # aws_instance.vpn_gateway will be created
+  + resource "aws_instance" "vpn_gateway" {
+      + ami                                  = "ami-06c11807f6c511068"
+      + arn                                  = (known after apply)
+      + associate_public_ip_address          = (known after apply)
+      + availability_zone                    = (known after apply)
+      + disable_api_stop                     = (known after apply)
+      + disable_api_termination              = (known after apply)
+      + ebs_optimized                        = (known after apply)
+      + enable_primary_ipv6                  = (known after apply)
+      + force_destroy                        = false
+      + get_password_data                    = false
+      + host_id                              = (known after apply)
+      + host_resource_group_arn              = (known after apply)
+      + iam_instance_profile                 = (known after apply)
+      + id                                   = (known after apply)
+      + instance_initiated_shutdown_behavior = (known after apply)
+      + instance_lifecycle                   = (known after apply)
+      + instance_state                       = (known after apply)
+      + instance_type                        = "t4g.micro"
+      + ipv6_address_count                   = (known after apply)
+      + ipv6_addresses                       = (known after apply)
+      + key_name                             = "UoL-IA0042"
+      + monitoring                           = (known after apply)
+      + outpost_arn                          = (known after apply)
+      + password_data                        = (known after apply)
+      + placement_group                      = (known after apply)
+      + placement_group_id                   = (known after apply)
+      + placement_partition_number           = (known after apply)
+      + primary_network_interface_id         = (known after apply)
+      + private_dns                          = (known after apply)
+      + private_ip                           = (known after apply)
+      + public_dns                           = (known after apply)
+      + public_ip                            = (known after apply)
+      + region                               = "us-west-2"
+      + secondary_private_ips                = (known after apply)
+      + security_groups                      = (known after apply)
+      + source_dest_check                    = false
+      + spot_instance_request_id             = (known after apply)
+      + subnet_id                            = (known after apply)
+      + tags                                 = {
+          + "Name" = "zta-lab-vpn-gateway"
+        }
+      + tags_all                             = {
+          + "Managed" = "terraform"
+          + "Name"    = "zta-lab-vpn-gateway"
+          + "Project" = "zta-migration-lab"
+        }
+      + tenancy                              = (known after apply)
+      + user_data_base64                     = (known after apply)
+      + user_data_replace_on_change          = false
+      + vpc_security_group_ids               = (known after apply)
+
+      + capacity_reservation_specification (known after apply)
+
+      + cpu_options (known after apply)
+
+      + ebs_block_device (known after apply)
+
+      + enclave_options (known after apply)
+
+      + ephemeral_block_device (known after apply)
+
+      + instance_market_options (known after apply)
+
+      + maintenance_options (known after apply)
+
+      + metadata_options (known after apply)
+
+      + network_interface (known after apply)
+
+      + primary_network_interface (known after apply)
+
+      + private_dns_name_options (known after apply)
+
+      + root_block_device (known after apply)
+
+      + secondary_network_interface (known after apply)
+    }
+
+  # aws_internet_gateway.igw will be created
+  + resource "aws_internet_gateway" "igw" {
+      + arn      = (known after apply)
+      + id       = (known after apply)
+      + owner_id = (known after apply)
+      + region   = "us-west-2"
+      + tags_all = {
+          + "Managed" = "terraform"
+          + "Project" = "zta-migration-lab"
+        }
+      + vpc_id   = (known after apply)
+    }
+
+  # aws_route_table.private will be created
+  + resource "aws_route_table" "private" {
+      + arn              = (known after apply)
+      + id               = (known after apply)
+      + owner_id         = (known after apply)
+      + propagating_vgws = (known after apply)
+      + region           = "us-west-2"
+      + route            = [
+          + {
+              + cidr_block                 = "10.0.0.0/24"
+              + network_interface_id       = (known after apply)
+                # (12 unchanged attributes hidden)
+            },
+          + {
+              + cidr_block                 = "10.9.0.0/24"
+              + network_interface_id       = (known after apply)
+                # (12 unchanged attributes hidden)
+            },
+        ]
+      + tags_all         = {
+          + "Managed" = "terraform"
+          + "Project" = "zta-migration-lab"
+        }
+      + vpc_id           = (known after apply)
+    }
+
+  # aws_route_table.public will be created
+  + resource "aws_route_table" "public" {
+      + arn              = (known after apply)
+      + id               = (known after apply)
+      + owner_id         = (known after apply)
+      + propagating_vgws = (known after apply)
+      + region           = "us-west-2"
+      + route            = [
+          + {
+              + cidr_block                 = "0.0.0.0/0"
+              + gateway_id                 = (known after apply)
+                # (12 unchanged attributes hidden)
+            },
+        ]
+      + tags_all         = {
+          + "Managed" = "terraform"
+          + "Project" = "zta-migration-lab"
+        }
+      + vpc_id           = (known after apply)
+    }
+
+  # aws_route_table_association.private will be created
+  + resource "aws_route_table_association" "private" {
+      + id             = (known after apply)
+      + region         = "us-west-2"
+      + route_table_id = (known after apply)
+      + subnet_id      = (known after apply)
+    }
+
+  # aws_route_table_association.public will be created
+  + resource "aws_route_table_association" "public" {
+      + id             = (known after apply)
+      + region         = "us-west-2"
+      + route_table_id = (known after apply)
+      + subnet_id      = (known after apply)
+    }
+
+  # aws_s3_bucket.data will be created
+  + resource "aws_s3_bucket" "data" {
+      + acceleration_status         = (known after apply)
+      + acl                         = (known after apply)
+      + arn                         = (known after apply)
+      + bucket                      = (known after apply)
+      + bucket_domain_name          = (known after apply)
+      + bucket_namespace            = (known after apply)
+      + bucket_prefix               = (known after apply)
+      + bucket_region               = (known after apply)
+      + bucket_regional_domain_name = (known after apply)
+      + force_destroy               = false
+      + hosted_zone_id              = (known after apply)
+      + id                          = (known after apply)
+      + object_lock_enabled         = (known after apply)
+      + policy                      = (known after apply)
+      + region                      = "us-west-2"
+      + request_payer               = (known after apply)
+      + tags_all                    = {
+          + "Managed" = "terraform"
+          + "Project" = "zta-migration-lab"
+        }
+      + website_domain              = (known after apply)
+      + website_endpoint            = (known after apply)
+
+      + cors_rule (known after apply)
+
+      + grant (known after apply)
+
+      + lifecycle_rule (known after apply)
+
+      + logging (known after apply)
+
+      + object_lock_configuration (known after apply)
+
+      + replication_configuration (known after apply)
+
+      + server_side_encryption_configuration (known after apply)
+
+      + versioning (known after apply)
+
+      + website (known after apply)
+    }
+
+  # aws_s3_bucket_public_access_block.data will be created
+  + resource "aws_s3_bucket_public_access_block" "data" {
+      + block_public_acls       = true
+      + block_public_policy     = true
+      + bucket                  = (known after apply)
+      + id                      = (known after apply)
+      + ignore_public_acls      = true
+      + region                  = "us-west-2"
+      + restrict_public_buckets = true
+    }
+
+  # aws_s3_object.probe_seed will be created
+  + resource "aws_s3_object" "probe_seed" {
+      + acl                    = (known after apply)
+      + arn                    = (known after apply)
+      + bucket                 = (known after apply)
+      + bucket_key_enabled     = (known after apply)
+      + checksum_crc32         = (known after apply)
+      + checksum_crc32c        = (known after apply)
+      + checksum_crc64nvme     = (known after apply)
+      + checksum_sha1          = (known after apply)
+      + checksum_sha256        = (known after apply)
+      + content                = <<-EOT
+            seed object for access-matrix read probes
+        EOT
+      + content_type           = (known after apply)
+      + etag                   = (known after apply)
+      + force_destroy          = false
+      + id                     = (known after apply)
+      + key                    = "probe.txt"
+      + kms_key_id             = (known after apply)
+      + region                 = "us-west-2"
+      + server_side_encryption = (known after apply)
+      + storage_class          = (known after apply)
+      + tags_all               = {
+          + "Managed" = "terraform"
+          + "Project" = "zta-migration-lab"
+        }
+      + version_id             = (known after apply)
+    }
+
+  # aws_security_group.vpn_gateway will be created
+  + resource "aws_security_group" "vpn_gateway" {
+      + arn                    = (known after apply)
+      + description            = "Managed by Terraform"
+      + egress                 = [
+          + {
+              + cidr_blocks      = [
+                  + "0.0.0.0/0",
+                ]
+              + from_port        = 0
+              + ipv6_cidr_blocks = []
+              + prefix_list_ids  = []
+              + protocol         = "-1"
+              + security_groups  = []
+              + self             = false
+              + to_port          = 0
+                # (1 unchanged attribute hidden)
+            },
+        ]
+      + id                     = (known after apply)
+      + ingress                = [
+          + {
+              + cidr_blocks      = [
+                  + "0.0.0.0/0",
+                ]
+              + description      = "OpenVPN site-to-site from the public address of the lab"
+              + from_port        = 1194
+              + ipv6_cidr_blocks = []
+              + prefix_list_ids  = []
+              + protocol         = "udp"
+              + security_groups  = []
+              + self             = false
+              + to_port          = 1194
+            },
+        ]
+      + name                   = "zta-lab-vpn-gateway"
+      + name_prefix            = (known after apply)
+      + owner_id               = (known after apply)
+      + region                 = "us-west-2"
+      + revoke_rules_on_delete = false
+      + tags_all               = {
+          + "Managed" = "terraform"
+          + "Project" = "zta-migration-lab"
+        }
+      + vpc_id                 = (known after apply)
+    }
+
+  # aws_security_group.workload will be created
+  + resource "aws_security_group" "workload" {
+      + arn                    = (known after apply)
+      + description            = "Managed by Terraform"
+      + egress                 = [
+          + {
+              + cidr_blocks      = [
+                  + "0.0.0.0/0",
+                ]
+              + from_port        = 0
+              + ipv6_cidr_blocks = []
+              + prefix_list_ids  = []
+              + protocol         = "-1"
+              + security_groups  = []
+              + self             = false
+              + to_port          = 0
+                # (1 unchanged attribute hidden)
+            },
+        ]
+      + id                     = (known after apply)
+      + ingress                = [
+          + {
+              + cidr_blocks      = [
+                  + "10.0.0.0/24",
+                  + "10.9.0.0/24",
+                  + "10.100.0.0/16",
+                ]
+              + description      = "All traffic from on-prem and VPN clients via tunnel"
+              + from_port        = 0
+              + ipv6_cidr_blocks = []
+              + prefix_list_ids  = []
+              + protocol         = "-1"
+              + security_groups  = []
+              + self             = false
+              + to_port          = 0
+            },
+        ]
+      + name                   = "zta-lab-workload"
+      + name_prefix            = (known after apply)
+      + owner_id               = (known after apply)
+      + region                 = "us-west-2"
+      + revoke_rules_on_delete = false
+      + tags_all               = {
+          + "Managed" = "terraform"
+          + "Project" = "zta-migration-lab"
+        }
+      + vpc_id                 = (known after apply)
+    }
+
+  # aws_subnet.private will be created
+  + resource "aws_subnet" "private" {
+      + arn                                            = (known after apply)
+      + assign_ipv6_address_on_creation                = false
+      + availability_zone                              = (known after apply)
+      + availability_zone_id                           = (known after apply)
+      + cidr_block                                     = "10.100.10.0/24"
+      + enable_dns64                                   = false
+      + enable_resource_name_dns_a_record_on_launch    = false
+      + enable_resource_name_dns_aaaa_record_on_launch = false
+      + id                                             = (known after apply)
+      + ipv6_cidr_block                                = (known after apply)
+      + ipv6_cidr_block_association_id                 = (known after apply)
+      + ipv6_native                                    = false
+      + map_public_ip_on_launch                        = false
+      + owner_id                                       = (known after apply)
+      + private_dns_hostname_type_on_launch            = (known after apply)
+      + region                                         = "us-west-2"
+      + tags                                           = {
+          + "Name" = "zta-lab-private"
+        }
+      + tags_all                                       = {
+          + "Managed" = "terraform"
+          + "Name"    = "zta-lab-private"
+          + "Project" = "zta-migration-lab"
+        }
+      + vpc_id                                         = (known after apply)
+    }
+
+  # aws_subnet.public will be created
+  + resource "aws_subnet" "public" {
+      + arn                                            = (known after apply)
+      + assign_ipv6_address_on_creation                = false
+      + availability_zone                              = (known after apply)
+      + availability_zone_id                           = (known after apply)
+      + cidr_block                                     = "10.100.0.0/24"
+      + enable_dns64                                   = false
+      + enable_resource_name_dns_a_record_on_launch    = false
+      + enable_resource_name_dns_aaaa_record_on_launch = false
+      + id                                             = (known after apply)
+      + ipv6_cidr_block                                = (known after apply)
+      + ipv6_cidr_block_association_id                 = (known after apply)
+      + ipv6_native                                    = false
+      + map_public_ip_on_launch                        = true
+      + owner_id                                       = (known after apply)
+      + private_dns_hostname_type_on_launch            = (known after apply)
+      + region                                         = "us-west-2"
+      + tags                                           = {
+          + "Name" = "zta-lab-public"
+        }
+      + tags_all                                       = {
+          + "Managed" = "terraform"
+          + "Name"    = "zta-lab-public"
+          + "Project" = "zta-migration-lab"
+        }
+      + vpc_id                                         = (known after apply)
+    }
+
+  # aws_vpc.lab will be created
+  + resource "aws_vpc" "lab" {
+      + arn                                  = (known after apply)
+      + cidr_block                           = "10.100.0.0/16"
+      + default_network_acl_id               = (known after apply)
+      + default_route_table_id               = (known after apply)
+      + default_security_group_id            = (known after apply)
+      + dhcp_options_id                      = (known after apply)
+      + enable_dns_hostnames                 = true
+      + enable_dns_support                   = true
+      + enable_network_address_usage_metrics = (known after apply)
+      + id                                   = (known after apply)
+      + instance_tenancy                     = "default"
+      + ipv6_association_id                  = (known after apply)
+      + ipv6_cidr_block                      = (known after apply)
+      + ipv6_cidr_block_network_border_group = (known after apply)
+      + main_route_table_id                  = (known after apply)
+      + owner_id                             = (known after apply)
+      + region                               = "us-west-2"
+      + tags                                 = {
+          + "Name" = "zta-lab"
+        }
+      + tags_all                             = {
+          + "Managed" = "terraform"
+          + "Name"    = "zta-lab"
+          + "Project" = "zta-migration-lab"
+        }
+    }
+
+  # random_string.bucket_suffix will be created
+  + resource "random_string" "bucket_suffix" {
+      + id          = (known after apply)
+      + length      = 6
+      + lower       = true
+      + min_lower   = 0
+      + min_numeric = 0
+      + min_special = 0
+      + min_upper   = 0
+      + number      = true
+      + numeric     = true
+      + result      = (known after apply)
+      + special     = false
+      + upper       = false
+    }
+
+Plan: 26 to add, 0 to change, 0 to destroy.
+
+Changes to Outputs:
+  + app_private_ip        = "10.100.10.10"
+  + data_bucket           = (known after apply)
+  + role_user_arns        = {
+      + remote-admin      = (known after apply)
+      + remote-analyst    = (known after apply)
+      + remote-contractor = (known after apply)
+      + remote-developer  = (known after apply)
+    }
+  + vpn_gateway_public_ip = (known after apply)
+  ```
+
+`terraform apply -var ssh_key_name=UoL-IA0042` output
+```
+$ tf apply -var ssh_key_name=UoL-IA0042
+data.aws_ami.ubuntu_arm64: Reading...
+data.aws_ami.ubuntu_arm64: Read complete after 1s [id=ami-06c11807f6c511068]
+
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:
+  + create
+ <= read (data resources)
+
+Terraform will perform the following actions:
+
+  # data.aws_iam_policy_document.s3_read will be read during apply
+  # (config refers to values not yet known)
+ <= data "aws_iam_policy_document" "s3_read" {
+      + id            = (known after apply)
+      + json          = (known after apply)
+      + minified_json = (known after apply)
+
+      + statement {
+          + actions   = [
+              + "s3:GetObject",
+              + "s3:ListBucket",
+            ]
+          + resources = [
+              + (known after apply),
+              + (known after apply),
+            ]
+        }
+    }
+
+  # data.aws_iam_policy_document.s3_write will be read during apply
+  # (config refers to values not yet known)
+ <= data "aws_iam_policy_document" "s3_write" {
+      + id            = (known after apply)
+      + json          = (known after apply)
+      + minified_json = (known after apply)
+
+      + statement {
+          + actions   = [
+              + "s3:PutObject",
+            ]
+          + resources = [
+              + (known after apply),
+            ]
+        }
+    }
+
+  # aws_iam_policy.s3_read will be created
+  + resource "aws_iam_policy" "s3_read" {
+      + arn              = (known after apply)
+      + attachment_count = (known after apply)
+      + id               = (known after apply)
+      + name             = "zta-lab-s3-read"
+      + name_prefix      = (known after apply)
+      + path             = "/"
+      + policy           = (known after apply)
+      + policy_id        = (known after apply)
+      + tags_all         = {
+          + "Managed" = "terraform"
+          + "Project" = "zta-migration-lab"
+        }
+    }
+
+  # aws_iam_policy.s3_write will be created
+  + resource "aws_iam_policy" "s3_write" {
+      + arn              = (known after apply)
+      + attachment_count = (known after apply)
+      + id               = (known after apply)
+      + name             = "zta-lab-s3-write"
+      + name_prefix      = (known after apply)
+      + path             = "/"
+      + policy           = (known after apply)
+      + policy_id        = (known after apply)
+      + tags_all         = {
+          + "Managed" = "terraform"
+          + "Project" = "zta-migration-lab"
+        }
+    }
+
+  # aws_iam_user.role_users["remote-admin"] will be created
+  + resource "aws_iam_user" "role_users" {
+      + arn           = (known after apply)
+      + force_destroy = false
+      + id            = (known after apply)
+      + name          = "remote-admin"
+      + path          = "/"
+      + tags          = {
+          + "Purpose" = "access-matrix-probe"
+        }
+      + tags_all      = {
+          + "Managed" = "terraform"
+          + "Project" = "zta-migration-lab"
+          + "Purpose" = "access-matrix-probe"
+        }
+      + unique_id     = (known after apply)
+    }
+
+  # aws_iam_user.role_users["remote-analyst"] will be created
+  + resource "aws_iam_user" "role_users" {
+      + arn           = (known after apply)
+      + force_destroy = false
+      + id            = (known after apply)
+      + name          = "remote-analyst"
+      + path          = "/"
+      + tags          = {
+          + "Purpose" = "access-matrix-probe"
+        }
+      + tags_all      = {
+          + "Managed" = "terraform"
+          + "Project" = "zta-migration-lab"
+          + "Purpose" = "access-matrix-probe"
+        }
+      + unique_id     = (known after apply)
+    }
+
+  # aws_iam_user.role_users["remote-contractor"] will be created
+  + resource "aws_iam_user" "role_users" {
+      + arn           = (known after apply)
+      + force_destroy = false
+      + id            = (known after apply)
+      + name          = "remote-contractor"
+      + path          = "/"
+      + tags          = {
+          + "Purpose" = "access-matrix-probe"
+        }
+      + tags_all      = {
+          + "Managed" = "terraform"
+          + "Project" = "zta-migration-lab"
+          + "Purpose" = "access-matrix-probe"
+        }
+      + unique_id     = (known after apply)
+    }
+
+  # aws_iam_user.role_users["remote-developer"] will be created
+  + resource "aws_iam_user" "role_users" {
+      + arn           = (known after apply)
+      + force_destroy = false
+      + id            = (known after apply)
+      + name          = "remote-developer"
+      + path          = "/"
+      + tags          = {
+          + "Purpose" = "access-matrix-probe"
+        }
+      + tags_all      = {
+          + "Managed" = "terraform"
+          + "Project" = "zta-migration-lab"
+          + "Purpose" = "access-matrix-probe"
+        }
+      + unique_id     = (known after apply)
+    }
+
+  # aws_iam_user_policy_attachment.read["remote-admin"] will be created
+  + resource "aws_iam_user_policy_attachment" "read" {
+      + id         = (known after apply)
+      + policy_arn = (known after apply)
+      + user       = "remote-admin"
+    }
+
+  # aws_iam_user_policy_attachment.read["remote-analyst"] will be created
+  + resource "aws_iam_user_policy_attachment" "read" {
+      + id         = (known after apply)
+      + policy_arn = (known after apply)
+      + user       = "remote-analyst"
+    }
+
+  # aws_iam_user_policy_attachment.read["remote-developer"] will be created
+  + resource "aws_iam_user_policy_attachment" "read" {
+      + id         = (known after apply)
+      + policy_arn = (known after apply)
+      + user       = "remote-developer"
+    }
+
+  # aws_iam_user_policy_attachment.write["remote-admin"] will be created
+  + resource "aws_iam_user_policy_attachment" "write" {
+      + id         = (known after apply)
+      + policy_arn = (known after apply)
+      + user       = "remote-admin"
+    }
+
+  # aws_instance.app will be created
+  + resource "aws_instance" "app" {
+      + ami                                  = "ami-06c11807f6c511068"
+      + arn                                  = (known after apply)
+      + associate_public_ip_address          = (known after apply)
+      + availability_zone                    = (known after apply)
+      + disable_api_stop                     = (known after apply)
+      + disable_api_termination              = (known after apply)
+      + ebs_optimized                        = (known after apply)
+      + enable_primary_ipv6                  = (known after apply)
+      + force_destroy                        = false
+      + get_password_data                    = false
+      + host_id                              = (known after apply)
+      + host_resource_group_arn              = (known after apply)
+      + iam_instance_profile                 = (known after apply)
+      + id                                   = (known after apply)
+      + instance_initiated_shutdown_behavior = (known after apply)
+      + instance_lifecycle                   = (known after apply)
+      + instance_state                       = (known after apply)
+      + instance_type                        = "t4g.micro"
+      + ipv6_address_count                   = (known after apply)
+      + ipv6_addresses                       = (known after apply)
+      + key_name                             = "UoL-IA0042"
+      + monitoring                           = (known after apply)
+      + outpost_arn                          = (known after apply)
+      + password_data                        = (known after apply)
+      + placement_group                      = (known after apply)
+      + placement_group_id                   = (known after apply)
+      + placement_partition_number           = (known after apply)
+      + primary_network_interface_id         = (known after apply)
+      + private_dns                          = (known after apply)
+      + private_ip                           = "10.100.10.10"
+      + public_dns                           = (known after apply)
+      + public_ip                            = (known after apply)
+      + region                               = "us-west-2"
+      + secondary_private_ips                = (known after apply)
+      + security_groups                      = (known after apply)
+      + source_dest_check                    = true
+      + spot_instance_request_id             = (known after apply)
+      + subnet_id                            = (known after apply)
+      + tags                                 = {
+          + "Name" = "zta-lab-app"
+        }
+      + tags_all                             = {
+          + "Managed" = "terraform"
+          + "Name"    = "zta-lab-app"
+          + "Project" = "zta-migration-lab"
+        }
+      + tenancy                              = (known after apply)
+      + user_data                            = <<-EOT
+            #!/bin/bash
+            apt-get update && apt-get install -y nginx
+            sed -i 's/listen 80/listen 8080/' /etc/nginx/sites-available/default
+            echo '<h1>AWS lab application</h1>' > /var/www/html/index.html
+            systemctl restart nginx
+        EOT
+      + user_data_base64                     = (known after apply)
+      + user_data_replace_on_change          = false
+      + vpc_security_group_ids               = (known after apply)
+
+      + capacity_reservation_specification (known after apply)
+
+      + cpu_options (known after apply)
+
+      + ebs_block_device (known after apply)
+
+      + enclave_options (known after apply)
+
+      + ephemeral_block_device (known after apply)
+
+      + instance_market_options (known after apply)
+
+      + maintenance_options (known after apply)
+
+      + metadata_options (known after apply)
+
+      + network_interface (known after apply)
+
+      + primary_network_interface (known after apply)
+
+      + private_dns_name_options (known after apply)
+
+      + root_block_device (known after apply)
+
+      + secondary_network_interface (known after apply)
+    }
+
+  # aws_instance.vpn_gateway will be created
+  + resource "aws_instance" "vpn_gateway" {
+      + ami                                  = "ami-06c11807f6c511068"
+      + arn                                  = (known after apply)
+      + associate_public_ip_address          = (known after apply)
+      + availability_zone                    = (known after apply)
+      + disable_api_stop                     = (known after apply)
+      + disable_api_termination              = (known after apply)
+      + ebs_optimized                        = (known after apply)
+      + enable_primary_ipv6                  = (known after apply)
+      + force_destroy                        = false
+      + get_password_data                    = false
+      + host_id                              = (known after apply)
+      + host_resource_group_arn              = (known after apply)
+      + iam_instance_profile                 = (known after apply)
+      + id                                   = (known after apply)
+      + instance_initiated_shutdown_behavior = (known after apply)
+      + instance_lifecycle                   = (known after apply)
+      + instance_state                       = (known after apply)
+      + instance_type                        = "t4g.micro"
+      + ipv6_address_count                   = (known after apply)
+      + ipv6_addresses                       = (known after apply)
+      + key_name                             = "UoL-IA0042"
+      + monitoring                           = (known after apply)
+      + outpost_arn                          = (known after apply)
+      + password_data                        = (known after apply)
+      + placement_group                      = (known after apply)
+      + placement_group_id                   = (known after apply)
+      + placement_partition_number           = (known after apply)
+      + primary_network_interface_id         = (known after apply)
+      + private_dns                          = (known after apply)
+      + private_ip                           = (known after apply)
+      + public_dns                           = (known after apply)
+      + public_ip                            = (known after apply)
+      + region                               = "us-west-2"
+      + secondary_private_ips                = (known after apply)
+      + security_groups                      = (known after apply)
+      + source_dest_check                    = false
+      + spot_instance_request_id             = (known after apply)
+      + subnet_id                            = (known after apply)
+      + tags                                 = {
+          + "Name" = "zta-lab-vpn-gateway"
+        }
+      + tags_all                             = {
+          + "Managed" = "terraform"
+          + "Name"    = "zta-lab-vpn-gateway"
+          + "Project" = "zta-migration-lab"
+        }
+      + tenancy                              = (known after apply)
+      + user_data_base64                     = (known after apply)
+      + user_data_replace_on_change          = false
+      + vpc_security_group_ids               = (known after apply)
+
+      + capacity_reservation_specification (known after apply)
+
+      + cpu_options (known after apply)
+
+      + ebs_block_device (known after apply)
+
+      + enclave_options (known after apply)
+
+      + ephemeral_block_device (known after apply)
+
+      + instance_market_options (known after apply)
+
+      + maintenance_options (known after apply)
+
+      + metadata_options (known after apply)
+
+      + network_interface (known after apply)
+
+      + primary_network_interface (known after apply)
+
+      + private_dns_name_options (known after apply)
+
+      + root_block_device (known after apply)
+
+      + secondary_network_interface (known after apply)
+    }
+
+  # aws_internet_gateway.igw will be created
+  + resource "aws_internet_gateway" "igw" {
+      + arn      = (known after apply)
+      + id       = (known after apply)
+      + owner_id = (known after apply)
+      + region   = "us-west-2"
+      + tags_all = {
+          + "Managed" = "terraform"
+          + "Project" = "zta-migration-lab"
+        }
+      + vpc_id   = (known after apply)
+    }
+
+  # aws_route_table.private will be created
+  + resource "aws_route_table" "private" {
+      + arn              = (known after apply)
+      + id               = (known after apply)
+      + owner_id         = (known after apply)
+      + propagating_vgws = (known after apply)
+      + region           = "us-west-2"
+      + route            = [
+          + {
+              + cidr_block                 = "10.0.0.0/24"
+              + network_interface_id       = (known after apply)
+                # (12 unchanged attributes hidden)
+            },
+          + {
+              + cidr_block                 = "10.9.0.0/24"
+              + network_interface_id       = (known after apply)
+                # (12 unchanged attributes hidden)
+            },
+        ]
+      + tags_all         = {
+          + "Managed" = "terraform"
+          + "Project" = "zta-migration-lab"
+        }
+      + vpc_id           = (known after apply)
+    }
+
+  # aws_route_table.public will be created
+  + resource "aws_route_table" "public" {
+      + arn              = (known after apply)
+      + id               = (known after apply)
+      + owner_id         = (known after apply)
+      + propagating_vgws = (known after apply)
+      + region           = "us-west-2"
+      + route            = [
+          + {
+              + cidr_block                 = "0.0.0.0/0"
+              + gateway_id                 = (known after apply)
+                # (12 unchanged attributes hidden)
+            },
+        ]
+      + tags_all         = {
+          + "Managed" = "terraform"
+          + "Project" = "zta-migration-lab"
+        }
+      + vpc_id           = (known after apply)
+    }
+
+  # aws_route_table_association.private will be created
+  + resource "aws_route_table_association" "private" {
+      + id             = (known after apply)
+      + region         = "us-west-2"
+      + route_table_id = (known after apply)
+      + subnet_id      = (known after apply)
+    }
+
+  # aws_route_table_association.public will be created
+  + resource "aws_route_table_association" "public" {
+      + id             = (known after apply)
+      + region         = "us-west-2"
+      + route_table_id = (known after apply)
+      + subnet_id      = (known after apply)
+    }
+
+  # aws_s3_bucket.data will be created
+  + resource "aws_s3_bucket" "data" {
+      + acceleration_status         = (known after apply)
+      + acl                         = (known after apply)
+      + arn                         = (known after apply)
+      + bucket                      = (known after apply)
+      + bucket_domain_name          = (known after apply)
+      + bucket_namespace            = (known after apply)
+      + bucket_prefix               = (known after apply)
+      + bucket_region               = (known after apply)
+      + bucket_regional_domain_name = (known after apply)
+      + force_destroy               = false
+      + hosted_zone_id              = (known after apply)
+      + id                          = (known after apply)
+      + object_lock_enabled         = (known after apply)
+      + policy                      = (known after apply)
+      + region                      = "us-west-2"
+      + request_payer               = (known after apply)
+      + tags_all                    = {
+          + "Managed" = "terraform"
+          + "Project" = "zta-migration-lab"
+        }
+      + website_domain              = (known after apply)
+      + website_endpoint            = (known after apply)
+
+      + cors_rule (known after apply)
+
+      + grant (known after apply)
+
+      + lifecycle_rule (known after apply)
+
+      + logging (known after apply)
+
+      + object_lock_configuration (known after apply)
+
+      + replication_configuration (known after apply)
+
+      + server_side_encryption_configuration (known after apply)
+
+      + versioning (known after apply)
+
+      + website (known after apply)
+    }
+
+  # aws_s3_bucket_public_access_block.data will be created
+  + resource "aws_s3_bucket_public_access_block" "data" {
+      + block_public_acls       = true
+      + block_public_policy     = true
+      + bucket                  = (known after apply)
+      + id                      = (known after apply)
+      + ignore_public_acls      = true
+      + region                  = "us-west-2"
+      + restrict_public_buckets = true
+    }
+
+  # aws_s3_object.probe_seed will be created
+  + resource "aws_s3_object" "probe_seed" {
+      + acl                    = (known after apply)
+      + arn                    = (known after apply)
+      + bucket                 = (known after apply)
+      + bucket_key_enabled     = (known after apply)
+      + checksum_crc32         = (known after apply)
+      + checksum_crc32c        = (known after apply)
+      + checksum_crc64nvme     = (known after apply)
+      + checksum_sha1          = (known after apply)
+      + checksum_sha256        = (known after apply)
+      + content                = <<-EOT
+            seed object for access-matrix read probes
+        EOT
+      + content_type           = (known after apply)
+      + etag                   = (known after apply)
+      + force_destroy          = false
+      + id                     = (known after apply)
+      + key                    = "probe.txt"
+      + kms_key_id             = (known after apply)
+      + region                 = "us-west-2"
+      + server_side_encryption = (known after apply)
+      + storage_class          = (known after apply)
+      + tags_all               = {
+          + "Managed" = "terraform"
+          + "Project" = "zta-migration-lab"
+        }
+      + version_id             = (known after apply)
+    }
+
+  # aws_security_group.vpn_gateway will be created
+  + resource "aws_security_group" "vpn_gateway" {
+      + arn                    = (known after apply)
+      + description            = "Managed by Terraform"
+      + egress                 = [
+          + {
+              + cidr_blocks      = [
+                  + "0.0.0.0/0",
+                ]
+              + from_port        = 0
+              + ipv6_cidr_blocks = []
+              + prefix_list_ids  = []
+              + protocol         = "-1"
+              + security_groups  = []
+              + self             = false
+              + to_port          = 0
+                # (1 unchanged attribute hidden)
+            },
+        ]
+      + id                     = (known after apply)
+      + ingress                = [
+          + {
+              + cidr_blocks      = [
+                  + "0.0.0.0/0",
+                ]
+              + description      = "OpenVPN site-to-site from the public address of the lab"
+              + from_port        = 1194
+              + ipv6_cidr_blocks = []
+              + prefix_list_ids  = []
+              + protocol         = "udp"
+              + security_groups  = []
+              + self             = false
+              + to_port          = 1194
+            },
+        ]
+      + name                   = "zta-lab-vpn-gateway"
+      + name_prefix            = (known after apply)
+      + owner_id               = (known after apply)
+      + region                 = "us-west-2"
+      + revoke_rules_on_delete = false
+      + tags_all               = {
+          + "Managed" = "terraform"
+          + "Project" = "zta-migration-lab"
+        }
+      + vpc_id                 = (known after apply)
+    }
+
+  # aws_security_group.workload will be created
+  + resource "aws_security_group" "workload" {
+      + arn                    = (known after apply)
+      + description            = "Managed by Terraform"
+      + egress                 = [
+          + {
+              + cidr_blocks      = [
+                  + "0.0.0.0/0",
+                ]
+              + from_port        = 0
+              + ipv6_cidr_blocks = []
+              + prefix_list_ids  = []
+              + protocol         = "-1"
+              + security_groups  = []
+              + self             = false
+              + to_port          = 0
+                # (1 unchanged attribute hidden)
+            },
+        ]
+      + id                     = (known after apply)
+      + ingress                = [
+          + {
+              + cidr_blocks      = [
+                  + "10.0.0.0/24",
+                  + "10.9.0.0/24",
+                  + "10.100.0.0/16",
+                ]
+              + description      = "All traffic from on-prem and VPN clients via tunnel"
+              + from_port        = 0
+              + ipv6_cidr_blocks = []
+              + prefix_list_ids  = []
+              + protocol         = "-1"
+              + security_groups  = []
+              + self             = false
+              + to_port          = 0
+            },
+        ]
+      + name                   = "zta-lab-workload"
+      + name_prefix            = (known after apply)
+      + owner_id               = (known after apply)
+      + region                 = "us-west-2"
+      + revoke_rules_on_delete = false
+      + tags_all               = {
+          + "Managed" = "terraform"
+          + "Project" = "zta-migration-lab"
+        }
+      + vpc_id                 = (known after apply)
+    }
+
+  # aws_subnet.private will be created
+  + resource "aws_subnet" "private" {
+      + arn                                            = (known after apply)
+      + assign_ipv6_address_on_creation                = false
+      + availability_zone                              = (known after apply)
+      + availability_zone_id                           = (known after apply)
+      + cidr_block                                     = "10.100.10.0/24"
+      + enable_dns64                                   = false
+      + enable_resource_name_dns_a_record_on_launch    = false
+      + enable_resource_name_dns_aaaa_record_on_launch = false
+      + id                                             = (known after apply)
+      + ipv6_cidr_block                                = (known after apply)
+      + ipv6_cidr_block_association_id                 = (known after apply)
+      + ipv6_native                                    = false
+      + map_public_ip_on_launch                        = false
+      + owner_id                                       = (known after apply)
+      + private_dns_hostname_type_on_launch            = (known after apply)
+      + region                                         = "us-west-2"
+      + tags                                           = {
+          + "Name" = "zta-lab-private"
+        }
+      + tags_all                                       = {
+          + "Managed" = "terraform"
+          + "Name"    = "zta-lab-private"
+          + "Project" = "zta-migration-lab"
+        }
+      + vpc_id                                         = (known after apply)
+    }
+
+  # aws_subnet.public will be created
+  + resource "aws_subnet" "public" {
+      + arn                                            = (known after apply)
+      + assign_ipv6_address_on_creation                = false
+      + availability_zone                              = (known after apply)
+      + availability_zone_id                           = (known after apply)
+      + cidr_block                                     = "10.100.0.0/24"
+      + enable_dns64                                   = false
+      + enable_resource_name_dns_a_record_on_launch    = false
+      + enable_resource_name_dns_aaaa_record_on_launch = false
+      + id                                             = (known after apply)
+      + ipv6_cidr_block                                = (known after apply)
+      + ipv6_cidr_block_association_id                 = (known after apply)
+      + ipv6_native                                    = false
+      + map_public_ip_on_launch                        = true
+      + owner_id                                       = (known after apply)
+      + private_dns_hostname_type_on_launch            = (known after apply)
+      + region                                         = "us-west-2"
+      + tags                                           = {
+          + "Name" = "zta-lab-public"
+        }
+      + tags_all                                       = {
+          + "Managed" = "terraform"
+          + "Name"    = "zta-lab-public"
+          + "Project" = "zta-migration-lab"
+        }
+      + vpc_id                                         = (known after apply)
+    }
+
+  # aws_vpc.lab will be created
+  + resource "aws_vpc" "lab" {
+      + arn                                  = (known after apply)
+      + cidr_block                           = "10.100.0.0/16"
+      + default_network_acl_id               = (known after apply)
+      + default_route_table_id               = (known after apply)
+      + default_security_group_id            = (known after apply)
+      + dhcp_options_id                      = (known after apply)
+      + enable_dns_hostnames                 = true
+      + enable_dns_support                   = true
+      + enable_network_address_usage_metrics = (known after apply)
+      + id                                   = (known after apply)
+      + instance_tenancy                     = "default"
+      + ipv6_association_id                  = (known after apply)
+      + ipv6_cidr_block                      = (known after apply)
+      + ipv6_cidr_block_network_border_group = (known after apply)
+      + main_route_table_id                  = (known after apply)
+      + owner_id                             = (known after apply)
+      + region                               = "us-west-2"
+      + tags                                 = {
+          + "Name" = "zta-lab"
+        }
+      + tags_all                             = {
+          + "Managed" = "terraform"
+          + "Name"    = "zta-lab"
+          + "Project" = "zta-migration-lab"
+        }
+    }
+
+  # random_string.bucket_suffix will be created
+  + resource "random_string" "bucket_suffix" {
+      + id          = (known after apply)
+      + length      = 6
+      + lower       = true
+      + min_lower   = 0
+      + min_numeric = 0
+      + min_special = 0
+      + min_upper   = 0
+      + number      = true
+      + numeric     = true
+      + result      = (known after apply)
+      + special     = false
+      + upper       = false
+    }
+
+Plan: 26 to add, 0 to change, 0 to destroy.
+
+Changes to Outputs:
+  + app_private_ip        = "10.100.10.10"
+  + data_bucket           = (known after apply)
+  + role_user_arns        = {
+      + remote-admin      = (known after apply)
+      + remote-analyst    = (known after apply)
+      + remote-contractor = (known after apply)
+      + remote-developer  = (known after apply)
+    }
+  + vpn_gateway_public_ip = (known after apply)
+
+Do you want to perform these actions?
+  Terraform will perform the actions described above.
+  Only 'yes' will be accepted to approve.
+
+  Enter a value: yes
+
+random_string.bucket_suffix: Creating...
+random_string.bucket_suffix: Creation complete after 0s [id=m8k415]
+aws_iam_user.role_users["remote-analyst"]: Creating...
+aws_iam_user.role_users["remote-developer"]: Creating...
+aws_iam_user.role_users["remote-contractor"]: Creating...
+aws_iam_user.role_users["remote-admin"]: Creating...
+aws_vpc.lab: Creating...
+aws_s3_bucket.data: Creating...
+aws_iam_user.role_users["remote-analyst"]: Creation complete after 1s [id=remote-analyst]
+aws_iam_user.role_users["remote-admin"]: Creation complete after 1s [id=remote-admin]
+aws_iam_user.role_users["remote-contractor"]: Creation complete after 1s [id=remote-contractor]
+aws_iam_user.role_users["remote-developer"]: Creation complete after 1s [id=remote-developer]
+aws_vpc.lab: Creation complete after 2s [id=vpc-0e323ba9258e65156]
+aws_internet_gateway.igw: Creating...
+aws_subnet.private: Creating...
+aws_subnet.public: Creating...
+aws_security_group.workload: Creating...
+aws_security_group.vpn_gateway: Creating...
+aws_s3_bucket.data: Creation complete after 2s [id=lab-data-bucket-m8k415]
+data.aws_iam_policy_document.s3_read: Reading...
+data.aws_iam_policy_document.s3_write: Reading...
+aws_s3_bucket_public_access_block.data: Creating...
+data.aws_iam_policy_document.s3_write: Read complete after 0s [id=3512013586]
+data.aws_iam_policy_document.s3_read: Read complete after 0s [id=3946160476]
+aws_s3_object.probe_seed: Creating...
+aws_iam_policy.s3_write: Creating...
+aws_iam_policy.s3_read: Creating...
+aws_s3_bucket_public_access_block.data: Creation complete after 1s [id=lab-data-bucket-m8k415]
+aws_s3_object.probe_seed: Creation complete after 1s [id=lab-data-bucket-m8k415/probe.txt]
+aws_iam_policy.s3_write: Creation complete after 1s [id=arn:aws:iam::<account-id>:policy/zta-lab-s3-write]
+aws_internet_gateway.igw: Creation complete after 1s [id=igw-06f896d5cffcb011e]
+aws_iam_user_policy_attachment.write["remote-admin"]: Creating...
+aws_route_table.public: Creating...
+aws_iam_policy.s3_read: Creation complete after 1s [id=arn:aws:iam::<account-id>:policy/zta-lab-s3-read]
+aws_iam_user_policy_attachment.read["remote-developer"]: Creating...
+aws_iam_user_policy_attachment.read["remote-analyst"]: Creating...
+aws_iam_user_policy_attachment.read["remote-admin"]: Creating...
+aws_iam_user_policy_attachment.write["remote-admin"]: Creation complete after 0s [id=remote-admin/arn:aws:iam::<account-id>:policy/zta-lab-s3-write]
+aws_iam_user_policy_attachment.read["remote-admin"]: Creation complete after 0s [id=remote-admin/arn:aws:iam::<account-id>:policy/zta-lab-s3-read]
+aws_iam_user_policy_attachment.read["remote-developer"]: Creation complete after 0s [id=remote-developer/arn:aws:iam::<account-id>:policy/zta-lab-s3-read]
+aws_iam_user_policy_attachment.read["remote-analyst"]: Creation complete after 0s [id=remote-analyst/arn:aws:iam::<account-id>:policy/zta-lab-s3-read]
+aws_subnet.private: Creation complete after 1s [id=subnet-04c7c617caf0628c9]
+aws_route_table.public: Creation complete after 1s [id=rtb-0441dc354c986e027]
+aws_security_group.vpn_gateway: Creation complete after 3s [id=sg-0d61d59f641036bea]
+aws_security_group.workload: Creation complete after 3s [id=sg-0fc7bc85ea7ef3fc3]
+aws_instance.app: Creating...
+aws_subnet.public: Still creating... [00m10s elapsed]
+aws_subnet.public: Creation complete after 12s [id=subnet-01cf32af4e477ea6b]
+aws_route_table_association.public: Creating...
+aws_instance.vpn_gateway: Creating...
+aws_route_table_association.public: Creation complete after 0s [id=rtbassoc-0ab9ce32e86af2f14]
+aws_instance.app: Still creating... [00m10s elapsed]
+aws_instance.app: Creation complete after 13s [id=i-0d30a5d0816aa57bc]
+aws_instance.vpn_gateway: Still creating... [00m10s elapsed]
+aws_instance.vpn_gateway: Creation complete after 13s [id=i-08e5aaf4219a04872]
+aws_route_table.private: Creating...
+aws_route_table.private: Creation complete after 2s [id=rtb-05a9d2c188ba97454]
+aws_route_table_association.private: Creating...
+aws_route_table_association.private: Creation complete after 1s [id=rtbassoc-08f4025d50d79088c]
+
+Apply complete! Resources: 26 added, 0 changed, 0 destroyed.
+
+Outputs:
+
+app_private_ip = "10.100.10.10"
+data_bucket = "lab-data-bucket-m8k415"
+role_user_arns = {
+  "remote-admin" = "arn:aws:iam::<account-id>:user/remote-admin"
+  "remote-analyst" = "arn:aws:iam::<account-id>:user/remote-analyst"
+  "remote-contractor" = "arn:aws:iam::<account-id>:user/remote-contractor"
+  "remote-developer" = "arn:aws:iam::<account-id>:user/remote-developer"
+}
+vpn_gateway_public_ip = "<hub-eip>"
+```

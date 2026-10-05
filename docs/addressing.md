@@ -21,7 +21,8 @@ journal.
 
 - VPC CIDR: `10.100.0.0/16`
 - Workload app (aws-app): `10.100.10.10:8080`
-- S3 data bucket: `lab-data-bucket`
+- S3 data bucket: `lab-data-bucket-<suffix>` (random suffix per environment;
+  `terraform output -raw data_bucket`, exported as `LAB_DATA_BUCKET` for the matrix)
 
 ## Identities
 

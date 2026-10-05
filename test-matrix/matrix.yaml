@@ -47,13 +47,14 @@ resources:
     type: exec
     operations:
       # AWS credentials for the role supplied via profile on the probing machine.
+      # LAB_DATA_BUCKET = `terraform output -raw data_bucket` (random suffix).
       read:
         command: >-
-          aws s3api head-object --bucket lab-data-bucket --key probe.txt
+          aws s3api head-object --bucket ${LAB_DATA_BUCKET} --key probe.txt
           --profile {role}
       write:
         command: >-
-          aws s3api put-object --bucket lab-data-bucket --key probe-{role}.txt
+          aws s3api put-object --bucket ${LAB_DATA_BUCKET} --key probe-{role}.txt
           --profile {role}
 
   aws-app:

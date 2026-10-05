@@ -13,8 +13,11 @@ intended cloud access model.
 
 ```bash
 terraform init
-terraform plan  -var ssh_key_name=<key> -var data_bucket_name=<unique-name>
-terraform apply -var ssh_key_name=<key> -var data_bucket_name=<unique-name>
+terraform plan  -var ssh_key_name=<key>
+terraform apply -var ssh_key_name=<key>
+
+# the data bucket name carries a random suffix; export it for the matrix
+export LAB_DATA_BUCKET=$(terraform output -raw data_bucket)
 ```
 
 Post-apply steps:
@@ -36,5 +39,8 @@ Design notes:
   separate, clearly named `.tf` files so the phase diff stays legible.
 - Single region + fixed instance type per the performance-variability
   mitigation in the methodology.
-- `data_bucket_name` must be globally unique; if overridden, update
-  `test-matrix/matrix.yaml` and `docs/addressing.md` to match.
+- The data bucket is named `<data_bucket_name>-<6 random characters>`
+  (default prefix `lab-data-bucket`) because S3 names are global. The
+  suffix is stable across applies but new after every destroy/rebuild,
+  so `test-matrix/matrix.yaml` reads it from `$LAB_DATA_BUCKET` rather
+  than hardcoding it. Record the resolved name in the journal per run.

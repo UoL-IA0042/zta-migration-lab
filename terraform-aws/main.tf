@@ -5,6 +5,10 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 6.0"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.6"
+    }
   }
 }
 
@@ -83,7 +87,7 @@ resource "aws_security_group" "vpn_gateway" {
   vpc_id = aws_vpc.lab.id
 
   ingress {
-    description = "OpenVPN site-to-site from the lab's public address"
+    description = "OpenVPN site-to-site from the public address of the lab"
     from_port   = 1194
     to_port     = 1194
     protocol    = "udp"
@@ -161,8 +165,21 @@ resource "aws_instance" "app" {
 
 # --- S3 data bucket (matrix: aws-s3-data) -----------------------------
 
+# Bucket names are global. The suffix is generated once per environment
+# and stays stable across applies; a destroy/rebuild yields a new one,
+# so consumers read the name from `terraform output data_bucket`.
+resource "random_string" "bucket_suffix" {
+  length  = 6
+  special = false
+  upper   = false # S3 bucket names must be lowercase
+}
+
+locals {
+  data_bucket_name = "${var.data_bucket_name}-${random_string.bucket_suffix.result}"
+}
+
 resource "aws_s3_bucket" "data" {
-  bucket = var.data_bucket_name
+  bucket = local.data_bucket_name
 }
 
 resource "aws_s3_bucket_public_access_block" "data" {

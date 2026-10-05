@@ -29,9 +29,14 @@ variable "app_private_ip" {
 }
 
 variable "data_bucket_name" {
-  description = "S3 data bucket (matrix: aws-s3-data); bucket names are global, override with a unique suffix"
+  description = "S3 data bucket name prefix (matrix: aws-s3-data); a random 6-character suffix is appended for global uniqueness"
   type        = string
   default     = "lab-data-bucket"
+
+  validation {
+    condition     = can(regex("^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$", var.data_bucket_name))
+    error_message = "Use 3-50 lowercase letters, digits or hyphens; the suffix brings the name to at most 57 of S3's 63 characters."
+  }
 }
 
 variable "instance_type" {

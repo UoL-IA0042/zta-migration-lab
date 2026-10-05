@@ -21,7 +21,9 @@ Probe types:
             recorded with detail.
     exec  - Arbitrary command (psql, aws s3api, ssh, ...). Exit 0 = allow,
             nonzero = deny; stderr captured as detail. `{role}` in the
-            command is substituted.
+            command is substituted, and `$VAR` / `${VAR}` are expanded
+            from the environment (an unset variable is an ERROR, never
+            a silent deny).
 
 Result semantics:
     PASS  - observed == expected
@@ -35,6 +37,7 @@ import argparse
 import csv
 import datetime
 import os
+import re
 import shlex
 import socket
 import subprocess
@@ -103,8 +106,18 @@ def probe_http(resource: dict, op_def: dict, timeout: float, role: str) -> tuple
         return DENY, "timeout", _ms(t0)
 
 
+# $VAR or ${VAR} references in exec commands (expanded from the environment)
+ENV_REF = re.compile(r"\$(?:\{(\w+)\}|(\w+))")
+
+
 def probe_exec(resource: dict, op_def: dict, timeout: float, role: str) -> tuple[str, str, int]:
-    command = op_def["command"].format(role=role)
+    # Expand environment references before str.format, which would
+    # otherwise read the braces in ${VAR} as a format field.
+    command = op_def["command"]
+    missing = sorted({a or b for a, b in ENV_REF.findall(command)} - set(os.environ))
+    if missing:
+        return ERROR, f"environment variable not set: {', '.join(missing)}", 0
+    command = os.path.expandvars(command).format(role=role)
     t0 = time.monotonic()
     try:
         proc = subprocess.run(
