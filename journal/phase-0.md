@@ -1894,3 +1894,20 @@ role_user_arns = {
 }
 vpn_gateway_public_ip = "<hub-eip>"
 ```
+
+## 2026-10-04 21:47 | phase-0 | terraform-aws | deployment
+Recording `terraform` and provider versions and resolved AMI ID.
+```
+$ tf -version
+Terraform v1.16.4
+on darwin_arm64
++ provider registry.terraform.io/hashicorp/aws v6.67.0
++ provider registry.terraform.io/hashicorp/random v3.9.1
+
+Your version of Terraform is out of date! The latest version
+is 1.16.5. You can update by downloading from https://developer.hashicorp.com/terraform/install
+```
+
+```
+AMI_ID=ami-06c11807f6c511068
+```
