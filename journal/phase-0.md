@@ -237,3 +237,55 @@ entry. The observability stack is now deployed.
 ## 2026-10-04 14:00-14:30 | phase-0 | ansible-observability | deployment
 Update the observability ansible code to use `ansible-vault` for the grafana admin
 password.
+
+## 2026-10-04 17:45-18:15 | phase-0 | ansible-keycloak | deployment
+Set all necessary passwords and secrets for keycloak deployment and encrypt them with
+`ansible-vault`.
+Deployed `ansible-keycloak`
+```
+$ ansible-playbook -i inventory.yaml --vault-pass-file ../.vault-pass site.yaml 
+
+PLAY [Deploy Keycloak with declarative realm] **************************************************************************************************************************************************
+
+TASK [Gathering Facts] *************************************************************************************************************************************************************************
+ok: [tpi2-2]
+
+TASK [Install Docker Engine and compose plugin] ************************************************************************************************************************************************
+ok: [tpi2-2]
+
+TASK [Enable and start Docker] *****************************************************************************************************************************************************************
+ok: [tpi2-2]
+
+TASK [Create install directories] **************************************************************************************************************************************************************
+ok: [tpi2-2] => (item=/opt/keycloak)
+ok: [tpi2-2] => (item=/opt/keycloak/import)
+
+TASK [Template realm definition (roles, users, OIDC clients)] **********************************************************************************************************************************
+ok: [tpi2-2]
+
+TASK [Template compose file] *******************************************************************************************************************************************************************
+changed: [tpi2-2]
+
+TASK [Start (or restart on config change) Keycloak stack] **************************************************************************************************************************************
+changed: [tpi2-2]
+
+TASK [Wait for Keycloak health endpoint] *******************************************************************************************************************************************************
+FAILED - RETRYING: [tpi2-2]: Wait for Keycloak health endpoint (29 retries left).
+FAILED - RETRYING: [tpi2-2]: Wait for Keycloak health endpoint (28 retries left).
+FAILED - RETRYING: [tpi2-2]: Wait for Keycloak health endpoint (27 retries left).
+FAILED - RETRYING: [tpi2-2]: Wait for Keycloak health endpoint (26 retries left).
+FAILED - RETRYING: [tpi2-2]: Wait for Keycloak health endpoint (25 retries left).
+FAILED - RETRYING: [tpi2-2]: Wait for Keycloak health endpoint (24 retries left).
+ok: [tpi2-2]
+
+TASK [Verify realm import (OIDC discovery document)] *******************************************************************************************************************************************
+ok: [tpi2-2]
+
+TASK [Report OIDC issuer for ZTNA integration] *************************************************************************************************************************************************
+ok: [tpi2-2] => {
+    "msg": "OIDC issuer: http://10.0.0.72:8080/realms/lab"
+}
+
+PLAY RECAP *************************************************************************************************************************************************************************************
+tpi2-2                     : ok=10   changed=2    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0
+```

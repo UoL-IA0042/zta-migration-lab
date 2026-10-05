@@ -14,12 +14,12 @@ keycloak_install_dir: /opt/keycloak
 
 # Bootstrap admin (rotate after first login)
 keycloak_admin_user: admin
-keycloak_admin_password: "CHANGE-ME-USE-VAULT"
+keycloak_admin_password: "{{ vault_keycloak_admin_password }}"
 
 # Backing database
 keycloak_db_name: keycloak
 keycloak_db_user: keycloak
-keycloak_db_password: "CHANGE-ME-USE-VAULT"
+keycloak_db_password: "{{ vault_keycloak_db_password }}"
 
 # --- Realm-as-code ----------------------------------------------------
 realm_name: lab
@@ -40,22 +40,22 @@ lab_roles:
 # Passwords vaulted; exported to probing machines via environment.
 lab_users:
   - username: remote-admin
-    password: "CHANGE-ME-USE-VAULT"
+    password: "{{ vault_remote_admin_password }}"
   - username: remote-developer
-    password: "CHANGE-ME-USE-VAULT"
+    password: "{{ vault_remote_developer_password }}"
   - username: remote-analyst
-    password: "CHANGE-ME-USE-VAULT"
+    password: "{{ vault_remote_analyst_password }}"
   - username: remote-contractor
-    password: "CHANGE-ME-USE-VAULT"
+    password: "{{ vault_remote_contractor_password }}"
 
 # OIDC clients for the ZTNA control planes (Phase 2).
 oidc_clients:
   - client_id: openziti
-    secret: "CHANGE-ME-USE-VAULT"
+    secret: "{{ vault_openziti_secret }}"
     redirect_uris:
       - "https://ziti.lab.example.com/*"
   - client_id: netbird
-    secret: "CHANGE-ME-USE-VAULT"
+    secret: "{{ vault_netbird_secret }}"
     redirect_uris:
       - "https://netbird.lab.example.com/*"
       - "http://localhost:53000/*"      # NetBird client loopback flow
