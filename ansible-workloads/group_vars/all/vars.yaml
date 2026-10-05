@@ -12,12 +12,12 @@ socat_image: "alpine/socat:latest"
 # DB grants below are the application-layer ground truth the test matrix
 # probes against.
 db_name: labdb
-db_superuser_password: "CHANGE-ME-USE-VAULT"
+db_superuser_password: "{{ vault_db_superuser_password }}"
 db_role_passwords:
-  remote-admin: "CHANGE-ME-USE-VAULT"
-  remote-developer: "CHANGE-ME-USE-VAULT"
-  remote-analyst: "CHANGE-ME-USE-VAULT"
-  remote-contractor: "CHANGE-ME-USE-VAULT"
+  remote-admin: "{{ vault_db_role_remote_admin_password }}"
+  remote-developer: "{{ vault_db_role_remote_developer_password }}"
+  remote-analyst: "{{ vault_db_role_remote_analyst_password }}"
+  remote-contractor: "{{ vault_db_role_remote_contractor_password }}"
 
 samba_share_user: labfiles
-samba_share_password: "CHANGE-ME-USE-VAULT"
+samba_share_password: "{{ vault_samba_share_password }}"
