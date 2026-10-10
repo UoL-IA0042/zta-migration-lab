@@ -4,7 +4,7 @@
 ---
 roles:
   - name: kyl191.openvpn
-    version: "3.0.1"  # pin for reproducibility; update deliberately and re-tag
+    version: "v3.2.0"  # pin for reproducibility; update deliberately and re-tag
 
 collections:
   - name: ansible.posix

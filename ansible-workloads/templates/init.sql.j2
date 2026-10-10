@@ -3,9 +3,12 @@
 --   remote-admin:      read + write
 --   remote-developer:  read + write
 --   remote-analyst:    read only
---   remote-contractor: no access (login works at DB level only if the
---                      network lets them reach it; deny is enforced by
---                      absent grants AND network policy)
+--   remote-contractor: no access. In Phase 1 the network lets them reach
+--                      postgres (perimeter over-breadth); the database
+--                      refuses the login because CONNECT is limited to
+--                      the other roles. Absent grants alone are not
+--                      enough: the matrix read probe is `SELECT 1`,
+--                      which needs no table privileges.
 
 CREATE TABLE IF NOT EXISTS probe_writes (
     id SERIAL PRIMARY KEY,
@@ -20,5 +23,8 @@ CREATE USER "{{ role }}" WITH PASSWORD '{{ password }}';
 GRANT SELECT, INSERT ON probe_writes TO "remote-admin", "remote-developer";
 GRANT USAGE, SELECT ON SEQUENCE probe_writes_id_seq TO "remote-admin", "remote-developer";
 GRANT SELECT ON probe_writes TO "remote-analyst";
--- remote-contractor: no grants.
+-- remote-contractor: no grants and no CONNECT.
 REVOKE ALL ON probe_writes FROM "remote-contractor";
+REVOKE CONNECT ON DATABASE "{{ db_name }}" FROM PUBLIC;
+GRANT CONNECT ON DATABASE "{{ db_name }}"
+    TO "remote-admin", "remote-developer", "remote-analyst";

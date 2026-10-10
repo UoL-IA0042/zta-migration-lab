@@ -19,7 +19,9 @@ Design notes:
 - DB grants are the application-layer ground truth: admin/developer
   read+write, analyst read-only, contractor nothing. In Phase 1 the
   network lets a contractor *reach* postgres (perimeter over-breadth)
-  but grants stop them; in ZTNA phases the network itself denies —
+  but the database refuses the login (CONNECT is granted only to the
+  other roles; init.sql runs only on an empty data directory, so this
+  needs a clean rebuild of tpi2-3); in ZTNA phases the network itself denies —
   the matrix records both layers' behavior.
 - The legacy service exists to exercise the segment-and-proxy pattern
   for RBAC-incapable systems (Experimental Design, resource

@@ -6,13 +6,14 @@
 #
 # Run:
 #   ansible-galaxy install -r requirements.yaml
-#   ansible-playbook -i inventory.yaml openvpn.yaml
+#   LAB_VPN_ENDPOINT=<lab public IP or DDNS name> \
+#     ansible-playbook -i inventory.yaml openvpn.yaml
 #
 # Split-tunnel configuration: clients are routed only to the lab and AWS
 # subnets, mirroring a typical enterprise remote-access VPN. Access control
-# in this phase is deliberately coarse (network-level reachability plus
-# firewall rules) — this ruleset is the documented "legacy" input artifact
-# for the Phase 3 rule-to-policy translation.
+# in this phase is deliberately coarse: group-based network ACLs on the VPN
+# concentrator (perimeter_ruleset below). That ruleset is the documented
+# "legacy" input artifact for the Phase 3 rule-to-policy translation.
 ---
 - name: Deploy perimeter-baseline OpenVPN server
   hosts: vpn
@@ -20,12 +21,50 @@
   gather_facts: true
 
   vars:
-    # --- Lab addressing (adjust to your environment) -----------------
+    # --- Lab addressing (docs/addressing.md) -------------------------
     lab_onprem_network: 10.0.0.0
     lab_onprem_netmask: 255.255.255.0
+    lab_onprem_cidr: 10.0.0.0/24
     aws_vpc_network: 10.100.0.0
     aws_vpc_netmask: 255.255.0.0
+    aws_vpc_cidr: 10.100.0.0/16
     lab_dns_server: 10.0.0.71        # DNS on tpi2-1
+
+    # Public name/IP remote workers dial; the ISP gateway forwards
+    # 1194/udp to tpi2-4. Taken from the environment so no public
+    # address is committed (journal rule: no non-lab IPs).
+    lab_vpn_endpoint: "{{ lookup('env', 'LAB_VPN_ENDPOINT') }}"
+
+    # --- VPN groups ----------------------------------------------------
+    # Every client has a fixed tunnel address (ccd ifconfig-push, see
+    # openvpn_client_configs) inside its group's range, and the ruleset
+    # matches on those ranges. Keep both in sync with docs/addressing.md.
+    vpn_group_ranges:
+      staff: 10.9.0.16/28            # remote-admin, -developer, -analyst
+      contractor: 10.9.0.32/28       # remote-contractor
+
+    # --- Perimeter ruleset (legacy artifact, Phase 3 input) -----------
+    # Routed traffic from the tunnel is denied unless listed here. Group
+    # membership grants broad network reachability, as in a typical
+    # perimeter VPN: staff reach everything on-prem and in AWS;
+    # contractors reach the intranet and DNS, plus postgres, where the
+    # database refuses them (documented over-breadth, see
+    # ansible-workloads). Rules are additive: removing an entry here does
+    # not delete the live rule; experiments start from a re-flashed node.
+    perimeter_ruleset:
+      - {group: staff, to: "{{ lab_onprem_cidr }}", comment: "staff -> on-prem LAN"}
+      - {group: staff, to: "{{ aws_vpc_cidr }}", comment: "staff -> AWS VPC"}
+      - {group: contractor, to: 10.0.0.73, port: 8080, proto: tcp, comment: "contractor -> intranet-web"}
+      - {group: contractor, to: 10.0.0.73, port: 5432, proto: tcp, comment: "contractor -> postgres (db denies)"}
+      - {group: contractor, to: "{{ lab_dns_server }}", port: 53, proto: udp, comment: "contractor -> lab DNS"}
+      - {group: contractor, to: "{{ lab_dns_server }}", port: 53, proto: tcp, comment: "contractor -> lab DNS (tcp)"}
+
+  pre_tasks:
+    - name: Require the public endpoint remote workers dial
+      ansible.builtin.assert:
+        that: lab_vpn_endpoint | length > 0
+        fail_msg: "Set LAB_VPN_ENDPOINT to the lab's public IP or DDNS name."
+        quiet: true
 
   roles:
     - role: kyl191.openvpn
@@ -36,7 +75,7 @@
       openvpn_server_network: 10.9.0.0
       openvpn_server_netmask: 255.255.255.0
       openvpn_server_ipv6_network: ""    # IPv4-only lab
-      openvpn_server_hostname: vpn.lab.example.com  # public name/IP clients dial
+      openvpn_server_hostname: "{{ lab_vpn_endpoint }}"
 
       # --- Split tunnel: push only lab + AWS routes ------------------
       openvpn_redirect_gateway: ""       # do not hijack client default route
@@ -52,6 +91,18 @@
       openvpn_topology: subnet
       openvpn_client_register_dns: false # no Windows clients in the lab
 
+      # --- Fixed client addresses (group membership) ------------------
+      # ccd-exclusive refuses any certificate without an entry here, so
+      # no client can fall back to an address outside its group range.
+      openvpn_client_config: true
+      openvpn_client_configs:
+        remote-admin: ["ifconfig-push 10.9.0.17 255.255.255.0"]
+        remote-developer: ["ifconfig-push 10.9.0.18 255.255.255.0"]
+        remote-analyst: ["ifconfig-push 10.9.0.19 255.255.255.0"]
+        remote-contractor: ["ifconfig-push 10.9.0.33 255.255.255.0"]
+      openvpn_addl_server_options:
+        - ccd-exclusive
+
       # --- Security --------------------------------------------------
       openvpn_cipher: "AES-256-GCM"
       openvpn_auth_alg: SHA256
@@ -60,7 +111,7 @@
       openvpn_sync_certs: true           # revoke anything not listed below
       openvpn_verify_cn: false
       openvpn_duplicate_cn: false
-      openvpn_client_cn_prefix: ""       # plain client names as CNs
+      openvpn_client_cn_prefix: ""       # plain client names as CNs (= ccd names)
 
       # --- Clients: one per emulated remote-worker role --------------
       # These identities deliberately mirror the roles used later in the
@@ -77,16 +128,56 @@
       openvpn_fetch_client_configs_per_user_dir: true
 
       # --- Firewall / NAT --------------------------------------------
+      # The role SNATs tunnel traffic to tpi2-4's LAN address, so on-prem
+      # and AWS targets see 10.0.0.251; filtering happens before SNAT, on
+      # the real tunnel addresses.
       openvpn_firewall: ufw              # Ubuntu default
       openvpn_manage_firewall_rules: true
       openvpn_manage_sysctl: true        # enable IPv4 forwarding
 
   post_tasks:
+    # kyl191.openvpn sets ufw to incoming ALLOW and forward ACCEPT on every
+    # run. These tasks run after its handlers and restore default-deny.
+    - name: Perimeter ruleset | allow listed group traffic from the tunnel
+      community.general.ufw:
+        rule: allow
+        route: true
+        interface_in: tun0
+        from_ip: "{{ vpn_group_ranges[item.group] }}"
+        to_ip: "{{ item.to }}"
+        to_port: "{{ item.port | default(omit) }}"
+        proto: "{{ item.proto | default('any') }}"
+        comment: "{{ item.comment }}"
+      loop: "{{ perimeter_ruleset }}"
+      loop_control:
+        label: "{{ item.comment }}"
+
+    - name: Perimeter ruleset | deny all other routed traffic
+      community.general.ufw:
+        default: deny
+        direction: routed
+
+    - name: Host firewall | allow SSH and monitoring from the lab LAN
+      community.general.ufw:
+        rule: allow
+        from_ip: "{{ lab_onprem_cidr }}"
+        comment: "lab LAN -> tpi2-4 (ssh, node_exporter)"
+
+    - name: Host firewall | deny all other inbound (1194/udp and tun0 stay open)
+      community.general.ufw:
+        default: deny
+        direction: incoming
+
     - name: Record deployed OpenVPN version (data collection)
       ansible.builtin.command: openvpn --version
       register: openvpn_version
       changed_when: false
 
-    - name: Show version for the work journal
+    - name: Record the live ruleset (Phase 3 translation input)
+      ansible.builtin.command: ufw status verbose
+      register: ufw_status
+      changed_when: false
+
+    - name: Show version and ruleset for the work journal
       ansible.builtin.debug:
-        msg: "{{ openvpn_version.stdout_lines[0] }}"
+        msg: "{{ [openvpn_version.stdout_lines[0]] + ufw_status.stdout_lines }}"
