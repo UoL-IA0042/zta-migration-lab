@@ -11,7 +11,7 @@ all:
         tpi2-1: {ansible_host: 10.0.0.71}
         tpi2-2: {ansible_host: 10.0.0.72}
         tpi2-3: {ansible_host: 10.0.0.73}
-        tpi2-4: {ansible_host: 10.0.0.74}
+        tpi2-4: {ansible_host: 10.0.0.251}
   vars:
     ansible_user: ubuntu
     ansible_python_interpreter: /usr/bin/python3

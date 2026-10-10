@@ -71,6 +71,34 @@ tpi flash --node 3 --image-path seeded.img       # full eMMC re-flash
 the running node. Re-seeding cloud-init = writing user-data files to
 the `CIDATA` partition (what `prepare-golden-image.sh` does).
 node
+## Edge nodes (tpi2-4)
+
+tpi2-4 takes its address from the ISP gateway, not dnsmasq, because
+the gateway only port-forwards to devices it leased (see
+`docs/addressing.md`, "Edge node"). Its network state must survive
+both reset paths:
+
+- **Golden restore** (`reset.yaml`): the netplan override lives in the
+  main root, so it is restored only if the golden image was captured
+  *after* the override was added. Recapture once
+  (`./capture-golden.sh tpi2-4`) and journal it; a restore from an
+  older golden image brings back the generated MAC and breaks the
+  port forward.
+- **Re-flash** (`tpi flash`): seed with DHCP and the pinned MAC:
+
+  ```bash
+  sudo MACADDRESS=00:52:83:67:c2:f5 ./prepare-golden-image.sh \
+      ubuntu-rockchip.img tpi2-4 dhcp
+  ```
+
+After either path, confirm before running ansible-openvpn:
+
+```bash
+cat /sys/class/net/end0/address        # 00:52:83:67:c2:f5
+grep SERVER_ADDRESS /run/systemd/netif/leases/*   # 10.0.0.1 (ISP gateway)
+ip -4 addr show end0                   # 10.0.0.251
+```
+
 ## Remaining VERIFY items (journal results)
 
 - `tpi flash` streaming at BMC 2.0.5 completes without exhausting BMC

@@ -16,7 +16,7 @@ all:
         tpi2-3:
           ansible_host: 10.0.0.73
         tpi2-4:
-          ansible_host: 10.0.0.74
+          ansible_host: 10.0.0.251
     k3s_cluster:
       children:
         k3s_server:

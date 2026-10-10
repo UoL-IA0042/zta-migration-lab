@@ -12,7 +12,7 @@ all:
         tpi2-3:
           ansible_host: 10.0.0.73   # protected workloads
         tpi2-4:
-          ansible_host: 10.0.0.74   # access gateway (OpenVPN)
+          ansible_host: 10.0.0.251  # access gateway (OpenVPN)
     vpn:
       hosts:
         tpi2-4:

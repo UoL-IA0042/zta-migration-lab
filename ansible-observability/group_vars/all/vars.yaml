@@ -18,7 +18,7 @@ node_exporter_targets:
   - 10.0.0.71
   - 10.0.0.72
   - 10.0.0.73
-  - 10.0.0.74
+  - 10.0.0.251
 
 # Log shipping: Grafana Alloy on every node pushes to Loki on tpi2-1.
 # VERIFY at deploy time: confirm the current 1.x release in the Grafana
