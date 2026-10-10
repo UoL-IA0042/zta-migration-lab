@@ -10,15 +10,23 @@ ARM64 since it installs the distro `openvpn` package).
 
 - `requirements.yaml` — pinned role + collections
 - `inventory.yaml` — Turing Pi 2 node inventory (`vpn` group = tpi2-4)
-- `openvpn.yaml` — playbook with lab-specific configuration
+  plus the AWS VPN gateway (`aws_vpn_gateway`, address from
+  `AWS_VPN_GATEWAY_IP`)
+- `openvpn.yaml` — three plays: site-to-site hub on AWS, remote-access
+  server on tpi2-4, site-to-site client on tpi2-4
 
 ## Usage
 
 ```bash
 ansible-galaxy install -r requirements.yaml
+export AWS_VPN_GATEWAY_IP=$(terraform -chdir=../terraform-aws output -raw vpn_gateway_public_ip)
 LAB_VPN_ENDPOINT=<lab public IP or DDNS name> \
   ansible-playbook -i inventory.yaml openvpn.yaml
 ```
+
+Apply `terraform-aws` first (with `lab_egress_cidr` set): the hub
+instance, its Elastic IP, security group and the VPC routes come from
+there.
 
 The public endpoint comes from the environment so no public address is
 committed (journal rule: no non-lab IPs).
@@ -38,6 +46,28 @@ Distribute them to the emulated remote-worker machines.
    A machine on the LAN reaches 10.0.0.73 directly, bypassing the VPN,
    so its deny results are meaningless; hairpin NAT through the ISP
    gateway is also unreliable.
+
+## Site-to-site to AWS
+
+```
+remote worker --1194/udp--> [ISP gw fwd] --> tpi2-4 tun0 (remote access)
+                                              |  perimeter ruleset, SNAT to 10.0.0.251
+                                              +--> 10.0.0.0/24 (on-prem)
+                                              +--> s2s0 --1194/udp out--> AWS hub --> 10.100.0.0/16
+```
+
+The hub on the AWS VPN gateway is an OpenVPN server whose only client
+is tpi2-4. tpi2-4 dials out to the hub's Elastic IP, so this leg needs
+no inbound port on the ISP gateway. The hub owns the LAN route
+(`route` + ccd `iroute 10.0.0.0/24`) and pushes `10.100.0.0/16` to
+tpi2-4; the tunnel is `openvpn-client@aws-s2s` on interface `s2s0`
+(fixed name, so the remote-access server keeps `tun0`). Remote-worker
+traffic reaches AWS SNATed to 10.0.0.251, which the VPC routes back
+through the hub. The final play waits for the route and checks that
+`aws-app` answers through the tunnel.
+
+Transit subnet: `10.9.1.0/24`. Hub ingress (1194/udp, 22/tcp) is
+limited to `lab_egress_cidr` in terraform-aws.
 
 ## Perimeter ruleset (Phase 1 access control)
 

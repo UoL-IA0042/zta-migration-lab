@@ -1,11 +1,19 @@
-# Phase 1: perimeter baseline — OpenVPN remote-access server on tpi2-4.
+# Phase 1: perimeter baseline — OpenVPN remote access + AWS site-to-site.
 #
-# Deploys OpenVPN via the community role kyl191.openvpn (pinned in
-# requirements.yaml), issues client certificates for the emulated remote
-# workers, and fetches their .ovpn profiles to the control machine.
+# Three plays, all built on the community role kyl191.openvpn (pinned in
+# requirements.yaml):
+#   1. Site-to-site hub on the AWS VPN gateway (terraform-aws). tpi2-4 is
+#      its only client and owns the on-prem LAN route (iroute).
+#   2. Remote-access server on tpi2-4 for the emulated remote workers,
+#      with the perimeter ruleset.
+#   3. Site-to-site client on tpi2-4. It dials OUT to the hub, so the AWS
+#      leg needs no inbound port on the ISP gateway.
+# Client profiles (remote workers, and tpi2-4's site-to-site profile) are
+# fetched to ~/ovpn-client-configs/ on the control machine.
 #
 # Run:
 #   ansible-galaxy install -r requirements.yaml
+#   export AWS_VPN_GATEWAY_IP=$(terraform -chdir=../terraform-aws output -raw vpn_gateway_public_ip)
 #   LAB_VPN_ENDPOINT=<lab public IP or DDNS name> \
 #     ansible-playbook -i inventory.yaml openvpn.yaml
 #
@@ -15,6 +23,92 @@
 # concentrator (perimeter_ruleset below). That ruleset is the documented
 # "legacy" input artifact for the Phase 3 rule-to-policy translation.
 ---
+- name: Deploy the site-to-site hub on the AWS VPN gateway
+  hosts: aws_vpn_gateway
+  become: true
+  gather_facts: false               # facts gathered after the address check
+
+  vars:
+    lab_onprem_network: 10.0.0.0
+    lab_onprem_netmask: 255.255.255.0
+    aws_vpc_network: 10.100.0.0
+    aws_vpc_netmask: 255.255.0.0
+
+  pre_tasks:
+    - name: Require the hub's Elastic IP
+      ansible.builtin.assert:
+        that: ansible_host | default('') | length > 0
+        fail_msg: >-
+          Set AWS_VPN_GATEWAY_IP (terraform output -raw vpn_gateway_public_ip
+          in terraform-aws/).
+        quiet: true
+
+    - name: Gather facts
+      ansible.builtin.setup:
+
+  roles:
+    - role: kyl191.openvpn
+      # --- Transport ------------------------------------------------
+      openvpn_port: 1194
+      openvpn_proto: udp
+      openvpn_dualstack: false
+      openvpn_server_network: 10.9.1.0   # site-to-site transit
+      openvpn_server_netmask: 255.255.255.0
+      openvpn_server_ipv6_network: ""
+      openvpn_server_hostname: "{{ ansible_host }}"
+
+      # --- Routing: the lab LAN lives behind the tpi2-4 client ---------
+      # `route` puts the LAN in the hub's kernel table (the VPC route table
+      # already sends 10.0.0.0/24 to this instance); `iroute` tells
+      # OpenVPN which client owns it. The VPC route is pushed to tpi2-4.
+      openvpn_redirect_gateway: ""
+      openvpn_set_dns: false
+      openvpn_push:
+        - "route {{ aws_vpc_network }} {{ aws_vpc_netmask }}"
+      openvpn_client_config: true
+      openvpn_client_configs:
+        tpi2-4:
+          - "iroute {{ lab_onprem_network }} {{ lab_onprem_netmask }}"
+      openvpn_addl_server_options:
+        - "route {{ lab_onprem_network }} {{ lab_onprem_netmask }}"
+        - ccd-exclusive
+      # Fixed interface name on tpi2-4, so the remote-access server keeps
+      # tun0 (the role's ufw rules and the perimeter ruleset assume it).
+      openvpn_addl_client_options:
+        - dev s2s0
+        - dev-type tun
+
+      # --- Behavior --------------------------------------------------
+      openvpn_client_to_client: false
+      openvpn_topology: subnet
+      openvpn_client_register_dns: false
+
+      # --- Security --------------------------------------------------
+      openvpn_cipher: "AES-256-GCM"
+      openvpn_auth_alg: SHA256
+      openvpn_use_tls_crypt: true
+      openvpn_use_crl: true
+      openvpn_sync_certs: true
+      openvpn_verify_cn: false
+      openvpn_duplicate_cn: false
+      openvpn_client_cn_prefix: ""       # CN = ccd name = tpi2-4
+
+      # --- Single client: the on-prem gateway --------------------------
+      openvpn_clients:
+        - tpi2-4
+
+      # --- Fetch tpi2-4's profile for play 3 ---------------------------
+      openvpn_fetch_client_configs: true
+      openvpn_fetch_client_configs_dir: "{{ lookup('env', 'HOME') }}/ovpn-client-configs"
+      openvpn_fetch_client_configs_per_user_dir: true
+
+      # --- Firewall / NAT --------------------------------------------
+      # Exposure is controlled by the security group (lab_egress_cidr
+      # only); the perimeter ruleset is enforced on tpi2-4.
+      openvpn_firewall: ufw
+      openvpn_manage_firewall_rules: true
+      openvpn_manage_sysctl: true
+
 - name: Deploy perimeter-baseline OpenVPN server
   hosts: vpn
   become: true
@@ -181,3 +275,54 @@
     - name: Show version and ruleset for the work journal
       ansible.builtin.debug:
         msg: "{{ [openvpn_version.stdout_lines[0]] + ufw_status.stdout_lines }}"
+
+- name: Connect tpi2-4 to the AWS site-to-site hub
+  hosts: vpn
+  become: true
+  gather_facts: false
+
+  vars:
+    s2s_profile: "{{ lookup('env', 'HOME') }}/ovpn-client-configs/tpi2-4/aws-vpn-gateway.ovpn"
+    s2s_unit: openvpn-client@aws-s2s
+    aws_app_url: http://10.100.10.10:8080/
+
+  handlers:
+    - name: Restart site-to-site tunnel
+      ansible.builtin.systemd_service:
+        name: "{{ s2s_unit }}"
+        state: restarted
+
+  tasks:
+    - name: Install the site-to-site profile fetched from the hub
+      ansible.builtin.copy:
+        src: "{{ s2s_profile }}"
+        dest: /etc/openvpn/client/aws-s2s.conf
+        owner: root
+        group: root
+        mode: "0600"
+      notify: Restart site-to-site tunnel
+
+    - name: Enable and start the site-to-site tunnel
+      ansible.builtin.systemd_service:
+        name: "{{ s2s_unit }}"
+        enabled: true
+        state: started
+
+    - name: Apply a changed profile now
+      ansible.builtin.meta: flush_handlers
+
+    - name: Wait for the AWS VPC route through the tunnel
+      ansible.builtin.command: ip -4 route show 10.100.0.0/16
+      register: s2s_route
+      until: "'s2s0' in s2s_route.stdout"
+      retries: 12
+      delay: 5
+      changed_when: false
+
+    - name: Verify aws-app answers through the tunnel
+      ansible.builtin.uri:
+        url: "{{ aws_app_url }}"
+      register: aws_app
+      until: aws_app.status == 200
+      retries: 6
+      delay: 5

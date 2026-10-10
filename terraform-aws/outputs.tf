@@ -1,6 +1,6 @@
 output "vpn_gateway_public_ip" {
-  description = "Public IP the on-prem OpenVPN peers with (site-to-site)"
-  value       = aws_instance.vpn_gateway.public_ip
+  description = "Elastic IP of the site-to-site hub (export as AWS_VPN_GATEWAY_IP for ansible-openvpn)"
+  value       = aws_eip.vpn_gateway.public_ip
 }
 
 output "app_private_ip" {

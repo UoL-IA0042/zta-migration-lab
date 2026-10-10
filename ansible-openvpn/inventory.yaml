@@ -16,6 +16,13 @@ all:
     vpn:
       hosts:
         tpi2-4:
+    aws_vpn_gateway:
+      hosts:
+        aws-vpn-gateway:
+          # Elastic IP from terraform-aws, supplied via the environment so
+          # no public address is committed:
+          #   export AWS_VPN_GATEWAY_IP=$(terraform output -raw vpn_gateway_public_ip)
+          ansible_host: "{{ lookup('env', 'AWS_VPN_GATEWAY_IP') }}"
   vars:
     ansible_user: ubuntu
     ansible_python_interpreter: /usr/bin/python3

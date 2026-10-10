@@ -91,7 +91,14 @@ resource "aws_security_group" "vpn_gateway" {
     from_port   = 1194
     to_port     = 1194
     protocol    = "udp"
-    cidr_blocks = ["0.0.0.0/0"] # tighten to the lab's egress IP after deploy
+    cidr_blocks = [var.lab_egress_cidr]
+  }
+  ingress {
+    description = "SSH from the lab (ansible-openvpn configures this host)"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = [var.lab_egress_cidr]
   }
   egress {
     from_port   = 0
@@ -141,8 +148,17 @@ resource "aws_instance" "vpn_gateway" {
   vpc_security_group_ids = [aws_security_group.vpn_gateway.id]
   source_dest_check      = false # routes tunnel traffic
   tags                   = { Name = "zta-lab-vpn-gateway" }
-  # OpenVPN site-to-site peer config is applied by ansible-openvpn
+  # OpenVPN site-to-site hub config is applied by ansible-openvpn
   # against this host (see that component's README).
+}
+
+# Stable public address for the hub: tpi2-4's site-to-site profile embeds
+# it, so it must survive instance stop/start.
+resource "aws_eip" "vpn_gateway" {
+  instance   = aws_instance.vpn_gateway.id
+  domain     = "vpc"
+  depends_on = [aws_internet_gateway.igw]
+  tags       = { Name = "zta-lab-vpn-gateway" }
 }
 
 resource "aws_instance" "app" {
@@ -154,12 +170,28 @@ resource "aws_instance" "app" {
   vpc_security_group_ids = [aws_security_group.workload.id]
   tags                   = { Name = "zta-lab-app" }
 
-  user_data = <<-EOF
+  # The private subnet has no route to the internet, so nothing can be
+  # installed at boot; serve the page with the AMI's python3 instead.
+  user_data_replace_on_change = true
+  user_data                   = <<-EOF
     #!/bin/bash
-    apt-get update && apt-get install -y nginx
-    sed -i 's/listen 80/listen 8080/' /etc/nginx/sites-available/default
-    echo '<h1>AWS lab application</h1>' > /var/www/html/index.html
-    systemctl restart nginx
+    set -euo pipefail
+    mkdir -p /srv/lab-app
+    echo '<h1>AWS lab application</h1>' > /srv/lab-app/index.html
+    cat > /etc/systemd/system/lab-app.service <<'UNIT'
+    [Unit]
+    Description=AWS lab application (matrix: aws-app)
+    After=network-online.target
+    Wants=network-online.target
+    [Service]
+    ExecStart=/usr/bin/python3 -m http.server 8080 --directory /srv/lab-app
+    DynamicUser=yes
+    Restart=always
+    [Install]
+    WantedBy=multi-user.target
+    UNIT
+    systemctl daemon-reload
+    systemctl enable --now lab-app.service
   EOF
 }
 

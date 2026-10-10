@@ -16,6 +16,16 @@ variable "onprem_cidr" {
   default     = "10.0.0.0/24"
 }
 
+variable "lab_egress_cidr" {
+  description = "The lab's public egress address as a /32 (site-to-site and SSH ingress to the VPN gateway). Supply via -var or terraform.tfvars; never commit it."
+  type        = string
+
+  validation {
+    condition     = can(cidrhost(var.lab_egress_cidr, 0)) && endswith(var.lab_egress_cidr, "/32")
+    error_message = "Use a single address in CIDR form, e.g. 203.0.113.7/32."
+  }
+}
+
 variable "vpn_client_cidr" {
   description = "OpenVPN client subnet (phase 1)"
   type        = string
