@@ -9,11 +9,14 @@ journal.
 
 | Node | Address | Role |
 |---|---|---|
-| tpi2-1 | 10.0.0.71 | management, observability (Loki :3100), DNS |
+| tpi2-1 | 10.0.0.71 | management, observability (Loki :3100) |
 | tpi2-2 | 10.0.0.72 | identity (Keycloak :8080), ZT control planes |
 | tpi2-3 | 10.0.0.73 | protected workloads |
 | tpi2-4 | 10.0.0.251 | access gateways (OpenVPN :1194/udp); edge node, see below |
 
+- Lab DNS/DHCP: dnsmasq on `lab-dns`, 10.0.0.153 (outside the cluster).
+  `no-hosts` is set, so node names come from `host-record` lines, not
+  `/etc/hosts`. Pushed to VPN clients as their DNS server.
 - MetalLB pool: `192.168.1.200–192.168.1.220` (outside DHCP scope)
 - OpenVPN remote-access client subnet: `10.9.0.0/24`, fixed per-client
   addresses (ccd `ifconfig-push`, `ccd-exclusive`):
@@ -37,7 +40,9 @@ from the internet is an *edge node*:
 
 - Takes its lease from the ISP gateway, reserved in the gateway app.
 - dnsmasq ignores it (`dhcp-host=<mac>,ignore`) so only the ISP
-  gateway answers its DHCP requests.
+  gateway answers its DHCP requests, and names it with
+  `host-record=<node>,<node>.lab.local,<address>` because no
+  dnsmasq lease exists to name it.
 - Uses `dhcp-identifier: mac` and a pinned, globally administered MAC
   (`macaddress:` in netplan); the gateway app did not list the node
   under its generated (locally administered) MAC.
@@ -71,7 +76,7 @@ test-matrix expectations): `remote-admin`, `remote-developer`,
 
 ## Consumers of these values
 
-- `ansible-openvpn/openvpn.yaml`, `inventory.yaml` (lab/AWS subnets, DNS, client
+- `ansible-openvpn/openvpn.yaml`, `inventory.yaml` (lab/AWS subnets, lab DNS 10.0.0.153, client
   addresses, transit subnet, tpi2-4)
 - `ansible-k3s/inventory.yaml`, `group_vars/all.yaml` (node IPs, MetalLB pool)
 - `ansible-keycloak/group_vars/all.yaml` (tpi2-2, roles, OIDC clients)
