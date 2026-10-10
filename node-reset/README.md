@@ -78,17 +78,36 @@ the gateway only port-forwards to devices it leased (see
 `docs/addressing.md`, "Edge node"). Its network state must survive
 both reset paths:
 
+- **Recovery OS**: `reset.yaml` reboots into recovery and waits for it
+  at the inventory address, so the recovery root needs the same netplan
+  override. Without it, recovery boots with the generated MAC, takes a
+  dnsmasq lease, and the reboot task times out. From the main OS:
+
+  ```bash
+  sudo mkdir -p /mnt/recovery && sudo mount /dev/nvme0n1p1 /mnt/recovery
+  cat /mnt/recovery/etc/netplan/*.yaml   # must use the zz-all-en/zz-all-eth IDs
+  sudo install -m 600 /etc/netplan/60-dhcp-identifier.yaml /mnt/recovery/etc/netplan/
+  sudo umount /mnt/recovery
+  ```
+
+  If recovery's netplan uses different IDs (e.g. a static `eth0` from
+  the seed), adapt the override to those IDs instead of copying it.
 - **Golden restore** (`reset.yaml`): the netplan override lives in the
   main root, so it is restored only if the golden image was captured
-  *after* the override was added. Recapture once
-  (`./capture-golden.sh tpi2-4`) and journal it; a restore from an
-  older golden image brings back the generated MAC and breaks the
-  port forward.
+  *after* the override was added. Recapture once and journal it; a
+  restore from an older golden image brings back the generated MAC and
+  breaks the port forward:
+
+  ```bash
+  ansible-playbook -i inventory.yaml reset.yaml -l tpi2-4 --tags to-recovery
+  ./capture-golden.sh tpi2-4 10.0.0.251
+  ansible-playbook -i inventory.yaml reset.yaml -l tpi2-4 --tags to-main,verify
+  ```
 - **Re-flash** (`tpi flash`): seed with DHCP and the pinned MAC:
 
   ```bash
-  sudo MACADDRESS=00:52:83:67:c2:f5 ./prepare-golden-image.sh \
-      ubuntu-rockchip.img tpi2-4 dhcp
+  sudo MACADDRESS=00:52:83:67:c2:f5 PUBKEY_FILE=~/.ssh/<lab-key>.pub \
+      ./prepare-golden-image.sh ubuntu-rockchip.img tpi2-4 dhcp
   ```
 
 After either path, confirm before running ansible-openvpn:
@@ -98,6 +117,12 @@ cat /sys/class/net/end0/address        # 00:52:83:67:c2:f5
 grep SERVER_ADDRESS /run/systemd/netif/leases/*   # 10.0.0.1 (ISP gateway)
 ip -4 addr show end0                   # 10.0.0.251
 ```
+
+The seeded SSH key is whatever `PUBKEY_FILE` points at (default
+`~/.ssh/id_ed25519.pub`); use the same lab key for every node so one
+`IdentitiesOnly` entry in the workstation's `~/.ssh/config` covers the
+cluster (agents holding several keys otherwise hit sshd's
+`MaxAuthTries` before reaching the right one).
 
 ## Remaining VERIFY items (journal results)
 
