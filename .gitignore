@@ -10,7 +10,8 @@ kubeconfig*
 .terraform/
 *.tfstate
 *.tfstate.backup
-*.tfvars          # commit only *.tfvars.example
+# commit only *.tfvars.example (gitignore has no trailing comments)
+*.tfvars
 
 # Ansible
 *.retry
