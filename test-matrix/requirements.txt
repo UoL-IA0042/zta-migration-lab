@@ -1,0 +1,2 @@
+# test-matrix runtime dependencies (record the installed version in the journal)
+PyYAML>=6.0,<7

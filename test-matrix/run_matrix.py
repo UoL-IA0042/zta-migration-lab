@@ -19,11 +19,22 @@ Probe types:
     http  - HTTP request. 2xx/3xx = allow; 401/403 = deny; anything else
             (including connection failure, which is deny at network level)
             recorded with detail.
-    exec  - Arbitrary command (psql, aws s3api, ssh, ...). Exit 0 = allow,
-            nonzero = deny; stderr captured as detail. `{role}` in the
-            command is substituted, and `$VAR` / `${VAR}` are expanded
-            from the environment (an unset variable is an ERROR, never
-            a silent deny).
+    exec  - Arbitrary command (psql, aws s3api, ssh, ...). Exit 0 = allow.
+            A nonzero exit is a deny only if its output matches the
+            probe's `deny_pattern` (regex); otherwise it is an ERROR, so a
+            missing client, profile or password can never pass as a deny.
+            A timeout is a deny only if `deny_on_timeout` is true (a
+            network-level drop is a legitimate deny for some resources,
+            not for others). Without `deny_pattern`, any nonzero exit is a
+            deny (legacy behaviour; set it for every exec probe). `{role}`
+            in the command is substituted, and `$VAR` / `${VAR}` are
+            expanded from the environment (an unset variable is an ERROR,
+            never a silent deny).
+
+Per-probe settings (on the resource, overridable per operation):
+    timeout          seconds for this probe (default: defaults.timeout)
+    deny_pattern     exec only: regex a genuine deny's output must match
+    deny_on_timeout  exec only: whether a timeout counts as deny (default true)
 
 Result semantics:
     PASS  - observed == expected
@@ -110,7 +121,14 @@ def probe_http(resource: dict, op_def: dict, timeout: float, role: str) -> tuple
 ENV_REF = re.compile(r"\$(?:\{(\w+)\}|(\w+))")
 
 
+def setting(resource: dict, op_def: dict, key: str, default):
+    """Per-operation value, else per-resource value, else default."""
+    return op_def.get(key, resource.get(key, default))
+
+
 def probe_exec(resource: dict, op_def: dict, timeout: float, role: str) -> tuple[str, str, int]:
+    deny_pattern = setting(resource, op_def, "deny_pattern", None)
+    deny_on_timeout = bool(setting(resource, op_def, "deny_on_timeout", True))
     # Expand environment references before str.format, which would
     # otherwise read the braces in ${VAR} as a format field.
     command = op_def["command"]
@@ -124,13 +142,18 @@ def probe_exec(resource: dict, op_def: dict, timeout: float, role: str) -> tuple
             shlex.split(command), capture_output=True, text=True, timeout=timeout,
         )
     except subprocess.TimeoutExpired:
-        return DENY, "timeout", _ms(t0)
+        if deny_on_timeout:
+            return DENY, "timeout", _ms(t0)
+        return ERROR, "timeout (not a deny for this probe)", _ms(t0)
     except FileNotFoundError as exc:
         return ERROR, f"command not found: {exc.filename}", _ms(t0)
     if proc.returncode == 0:
         return ALLOW, "exit 0", _ms(t0)
+    output = f"{proc.stderr or ''}\n{proc.stdout or ''}"
     detail = (proc.stderr or proc.stdout or "").strip().replace("\n", " ")[:200]
-    return DENY, f"exit {proc.returncode}: {detail}", _ms(t0)
+    if deny_pattern is None or re.search(deny_pattern, output):
+        return DENY, f"exit {proc.returncode}: {detail}", _ms(t0)
+    return ERROR, f"exit {proc.returncode}, no deny signature: {detail}", _ms(t0)
 
 
 def run(matrix: dict, role: str, out_dir: str, dry_run: bool) -> int:
@@ -153,16 +176,24 @@ def run(matrix: dict, role: str, out_dir: str, dry_run: bool) -> int:
                 sys.exit(f"{role}/{res_name}/{op_name}: expected must be allow|deny")
             op_def = resource.get("operations", {}).get(op_name, {})
             ptype = resource["type"]
+            probe_timeout = float(setting(resource, op_def, "timeout", timeout))
+            pattern = setting(resource, op_def, "deny_pattern", None)
+            if pattern is not None:
+                try:
+                    re.compile(pattern)
+                except re.error as exc:
+                    sys.exit(f"{res_name}/{op_name}: invalid deny_pattern: {exc}")
             if dry_run:
+                deny_rule = f" deny=/{pattern}/" if pattern else ""
                 print(f"DRY  {role:20s} {res_name:20s} {op_name:10s} "
-                      f"[{ptype}] expect {expected}")
+                      f"[{ptype}{deny_rule}] expect {expected}")
                 continue
             if ptype == "tcp":
-                observed, detail, latency = probe_tcp(resource, op_def, timeout)
+                observed, detail, latency = probe_tcp(resource, op_def, probe_timeout)
             elif ptype == "http":
-                observed, detail, latency = probe_http(resource, op_def, timeout, role)
+                observed, detail, latency = probe_http(resource, op_def, probe_timeout, role)
             elif ptype == "exec":
-                observed, detail, latency = probe_exec(resource, op_def, timeout, role)
+                observed, detail, latency = probe_exec(resource, op_def, probe_timeout, role)
             else:
                 sys.exit(f"unknown probe type '{ptype}' for resource '{res_name}'")
 

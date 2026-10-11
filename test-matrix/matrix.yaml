@@ -26,14 +26,21 @@ resources:
 
   postgres:
     type: exec
+    # A deny is the database refusing (CONNECT or table privileges) or, in
+    # ZTNA phases, the network dropping the connection. Anything else (no
+    # psql, wrong or missing PGPASSWORD) is an ERROR, not a deny.
+    deny_pattern: >-
+      permission denied for (database|table|relation|sequence)|timeout expired|Connection refused|No route to host|Network is unreachable
+    deny_on_timeout: true
     operations:
-      # PGPASSWORD supplied via environment on the probing machine.
+      # PGPASSWORD supplied via environment on the probing machine; -w never
+      # prompts, so a missing password errors instead of hanging.
       read:
         command: >-
-          psql -h 10.0.0.73 -U {role} -d labdb -tAc 'SELECT 1'
+          psql -w -h 10.0.0.73 -U {role} -d labdb -tAc 'SELECT 1'
       write:
         command: >-
-          psql -h 10.0.0.73 -U {role} -d labdb -tAc
+          psql -w -h 10.0.0.73 -U {role} -d labdb -tAc
           'INSERT INTO probe_writes (role) VALUES (current_user)'
 
   legacy-service:
@@ -45,13 +52,21 @@ resources:
 
   aws-s3-data:
     type: exec
+    # A deny is IAM refusing the request. S3 is reached over the internet,
+    # not the tunnel, so a timeout is never a policy decision; a missing
+    # profile or invalid key does not match and is an ERROR.
+    deny_pattern: 'AccessDenied'
+    deny_on_timeout: false
+    timeout: 30          # aws CLI cold start can exceed the 10 s default
     operations:
       # AWS credentials for the role supplied via profile on the probing machine.
       # LAB_DATA_BUCKET = `terraform output -raw data_bucket` (random suffix).
+      # get-object, not head-object: HEAD responses carry no error code, so
+      # a denied request and an invalid key both read only "(403) Forbidden".
       read:
         command: >-
-          aws s3api head-object --bucket ${LAB_DATA_BUCKET} --key probe.txt
-          --profile {role}
+          aws s3api get-object --bucket ${LAB_DATA_BUCKET} --key probe.txt
+          /dev/null --profile {role}
       write:
         command: >-
           aws s3api put-object --bucket ${LAB_DATA_BUCKET} --key probe-{role}.txt
