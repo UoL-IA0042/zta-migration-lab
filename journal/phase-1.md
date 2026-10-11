@@ -2522,3 +2522,5 @@ head-object to get-object, because HEAD responses carry no error code and
 cannot distinguish AccessDenied from an invalid key. Added `psql -w` so a
 missing password errors instead of prompting. Added requirements.txt. PyYAML
 version installed: 6.0.3.
+
+There are two more results that were part of the setup. They should not be counted.

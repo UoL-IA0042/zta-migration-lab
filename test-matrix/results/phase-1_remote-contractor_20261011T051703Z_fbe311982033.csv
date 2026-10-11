@@ -1,0 +1,9 @@
+run_id,timestamp_utc,phase,role,resource,operation,probe_type,expected,observed,result,latency_ms,detail
+fbe311982033,2026-10-11T05:16:30+00:00,phase-1,remote-contractor,intranet-web,read,http,allow,allow,PASS,237,HTTP 200
+fbe311982033,2026-10-11T05:16:40+00:00,phase-1,remote-contractor,file-service,connect,tcp,deny,deny,PASS,10004,timeout
+fbe311982033,2026-10-11T05:16:41+00:00,phase-1,remote-contractor,postgres,read,exec,deny,error,ERROR,491,"exit 2, no deny signature: psql: error: connection to server at ""10.0.0.73"", port 5432 failed: fe_sendauth: no password supplied"
+fbe311982033,2026-10-11T05:16:41+00:00,phase-1,remote-contractor,postgres,write,exec,deny,error,ERROR,289,"exit 2, no deny signature: psql: error: connection to server at ""10.0.0.73"", port 5432 failed: fe_sendauth: no password supplied"
+fbe311982033,2026-10-11T05:16:51+00:00,phase-1,remote-contractor,legacy-service,connect,tcp,deny,deny,PASS,10003,timeout
+fbe311982033,2026-10-11T05:16:52+00:00,phase-1,remote-contractor,aws-s3-data,read,exec,deny,deny,PASS,724,"exit 254: aws: [ERROR]: An error occurred (AccessDenied) when calling the GetObject operation: User: arn:aws:iam::<account-id>:user/remote-contractor is not authorized to perform: s3:GetObject on resource: ""arn"
+fbe311982033,2026-10-11T05:16:52+00:00,phase-1,remote-contractor,aws-s3-data,write,exec,deny,deny,PASS,664,"exit 254: aws: [ERROR]: An error occurred (AccessDenied) when calling the PutObject operation: User: arn:aws:iam::<account-id>:user/remote-contractor is not authorized to perform: s3:PutObject on resource: ""arn"
+fbe311982033,2026-10-11T05:17:03+00:00,phase-1,remote-contractor,aws-app,read,http,deny,deny,PASS,10002,connection failed: timed out
