@@ -20,6 +20,26 @@
   become: true
   serial: 1
   tasks:
+    # -------------------------------------------------------- pre-flight
+    # Runs for every tag subset. Fails before mounting anything if the
+    # node has not had the one-time setup (setup-recovery.yaml): on the
+    # factory layout nvme0n1p1 is /data, not a recovery OS.
+    - name: Read NVMe partition labels
+      ansible.builtin.command: lsblk -no LABEL {{ recovery_root_part | regex_replace('p[0-9]+$', '') }}
+      register: nvme_labels
+      changed_when: false
+      tags: [always]
+
+    - name: Require the node-reset layout (recovery + data partitions)
+      ansible.builtin.assert:
+        that: (nvme_labels.stdout_lines | select | list) == ['recovery', 'data']
+        fail_msg: >-
+          {{ inventory_hostname }} has no recovery partition (NVMe labels:
+          {{ nvme_labels.stdout_lines | select | list }}). Run the one-time
+          setup first: setup-recovery.yaml -l {{ inventory_hostname }} -e confirm_wipe_nvme=yes
+        quiet: true
+      tags: [always]
+
     # ------------------------------------------------------ to recovery
     # Mounts are ephemeral: state=mounted would write fstab entries that
     # persist into the golden image (main) and make recovery mount the
