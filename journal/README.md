@@ -27,3 +27,8 @@ Categories (fixed taxonomy — do not invent new ones mid-study):
 - Reference issue numbers for any defect or unplanned work.
 - No secrets, no real credentials, no non-lab IPs: this ships with the
   public archive.
+- Pasted output is redacted with fixed labels: `<account-id>`,
+  `<hub-eip>` (`<hub-eip-dashed>` in EC2 hostnames), `<lab-egress-ip>`,
+  `<edge-ip>`. For `terraform apply`, record the command (public values as
+  variables), the `Plan:` summary line and anything unexpected, not the
+  full output.
