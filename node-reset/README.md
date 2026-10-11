@@ -55,6 +55,7 @@ keeps booting recovery — re-run from `--tags restore`.
 ## Usage
 
 ```bash
+ansible-galaxy collection install -r requirements.yaml       # once
 ansible-playbook -i inventory.yaml reset.yaml -l tpi2-3     # full cycle
 ansible-playbook -i inventory.yaml reset.yaml -l tpi2-3 --tags to-recovery
 ./capture-golden.sh tpi2-3                                  # refresh golden

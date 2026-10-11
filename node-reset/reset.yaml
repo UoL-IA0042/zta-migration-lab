@@ -21,12 +21,15 @@
   serial: 1
   tasks:
     # ------------------------------------------------------ to recovery
+    # Mounts are ephemeral: state=mounted would write fstab entries that
+    # persist into the golden image (main) and make recovery mount the
+    # eMMC root at boot (recovery), which the confirm step then rejects.
     - name: Mount recovery partition (from main OS)
       ansible.posix.mount:
         path: "{{ recovery_mount }}"
         src: "{{ recovery_root_part }}"
         fstype: ext4
-        state: mounted
+        state: ephemeral
       tags: [to-recovery]
 
     - name: Check recovery extlinux state
@@ -95,7 +98,7 @@
         path: "{{ main_root_mount }}"
         src: "{{ main_root_part }}"
         fstype: ext4
-        state: mounted
+        state: ephemeral
       tags: [restore]
 
     - name: Confirm restored extlinux.conf present on main root
