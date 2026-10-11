@@ -10,6 +10,7 @@ intended cloud access model.
 | `aws_s3_bucket.data` | `aws-s3-data` |
 | IAM users remote-* | probing credentials (AWS profiles) |
 | `aws_instance.vpn_gateway` | Phase 1 site-to-site terminator |
+| `aws_instance.ziti_edge` (`enable_openziti`) | Phase 2 OpenZiti edge host: controller, public router, IdP proxy |
 
 ```bash
 terraform init
@@ -34,6 +35,19 @@ Post-apply steps:
    the new value.
 3. Record `terraform version`, provider versions (`.terraform.lock.hcl`
    is committed), and the resolved AMI ID in the journal.
+
+Phase 2 (OpenZiti, `phase2-openziti.tf`, docs/phase-2-openziti.md):
+
+```bash
+terraform apply -var ssh_key_name=<key> -var lab_egress_cidr=<ip>/32 -var enable_openziti=true
+export LAB_EDGE_IP=$(terraform output -raw edge_host_public_ip)
+```
+
+The edge host gets its own subnet (10.100.1.0/24) and route table
+(internet + on-prem via the hub), a security group open to the internet
+on 80/443/1280/3022 (SSH from `lab_egress_cidr`), and an Elastic IP; the
+hub's security group admits the edge subnet on the Keycloak port.
+`enable_openziti=false` (default) leaves the Phase 1 environment unchanged.
 
 Design notes:
 

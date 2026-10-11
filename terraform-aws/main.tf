@@ -100,6 +100,19 @@ resource "aws_security_group" "vpn_gateway" {
     protocol    = "tcp"
     cidr_blocks = [var.lab_egress_cidr]
   }
+  # Phase 2 (phase2-openziti.tf): forwarded traffic is filtered on the hub
+  # ENI, so the edge host's IdP proxy must be admitted to reach Keycloak
+  # through the tunnel.
+  dynamic "ingress" {
+    for_each = var.enable_openziti ? [local.edge_subnet_cidr] : []
+    content {
+      description = "Phase 2: edge host IdP proxy -> Keycloak via the tunnel"
+      from_port   = var.lab_idp_port
+      to_port     = var.lab_idp_port
+      protocol    = "tcp"
+      cidr_blocks = [ingress.value]
+    }
+  }
   egress {
     from_port   = 0
     to_port     = 0
