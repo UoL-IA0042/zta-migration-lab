@@ -499,3 +499,1086 @@ ok: [tpi2-4]
 PLAY RECAP *****************************************************************************************************************************************************************
 tpi2-4                     : ok=8    changed=4    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0
 ```
+
+## 2026-10-10 17:50-20:45 | phase-1 | ansible-openvpn | deployment
+Testing the recovery process to ensure it works as expected.
+
+```
+$ ssh tpi2-4 'cat /etc/recovery-os; findmnt -n -o SOURCE /; findmnt -n -o SOURCE /data'
+tpi2-4 recovery OS, cloned 2026-10-11T00:25:54Z
+/dev/nvme0n1p1
+/dev/nvme0n1p2
+$ ./capture-golden.sh tpi2-4 10.0.0.251
+capturing /dev/mmcblk0p2 on 10.0.0.251 -> /data/golden/rootfs.img.zst
+31239176192 bytes (31 GB, 29 GiB) copied, 126 s, 248 MB/s
+7449+1 records in
+7449+1 records out
+31247547904 bytes (31 GB, 29 GiB) copied, 129.456 s, 241 MB/s
+/*stdin*\            :  7.33%   (  29.1 GiB =>   2.13 GiB, /data/golden/rootfs.img.zst.new) 
+total 2.2G
+-rw-r--r-- 1 root root 2.2G Oct 11 00:45 rootfs.img.zst
+-rw-r--r-- 1 root root   98 Oct 11 00:45 rootfs.sha256
+captured. Record image identity in the journal:
+99d7f29953b69f4c37198fb260c7f23cd0c42fbf4f7ef8abd4da434f4276f872  /data/golden/rootfs.img.zst.new
+```
+
+Full run of the `reset` playbook as final verification.
+
+```
+$ ansible-playbook -i inventory.yaml reset.yaml -l tpi2-4
+
+PLAY [Reset node to golden state] ******************************************************************************************************************************************
+
+TASK [Gathering Facts] *****************************************************************************************************************************************************
+ok: [tpi2-4]
+
+TASK [Mount recovery partition (from main OS)] *****************************************************************************************************************************
+changed: [tpi2-4]
+
+TASK [Check recovery extlinux state] ***************************************************************************************************************************************
+ok: [tpi2-4]
+
+TASK [Assert recovery extlinux exists (enabled or disabled)] ***************************************************************************************************************
+ok: [tpi2-4]
+
+TASK [Enable recovery boot (rename extlinux.conf into place)] **************************************************************************************************************
+skipping: [tpi2-4]
+
+TASK [Unmount recovery partition] ******************************************************************************************************************************************
+changed: [tpi2-4]
+
+TASK [Reboot into recovery OS (NVMe wins the boot scan)] *******************************************************************************************************************
+changed: [tpi2-4]
+
+TASK [Confirm recovery OS (root on NVMe, eMMC root unmounted)] *************************************************************************************************************
+ok: [tpi2-4]
+
+TASK [Verify golden image checksum] ****************************************************************************************************************************************
+[ERROR]: Task failed: Module failed: The command exited with a non-zero return code.
+Origin: /Users/<user>/dev/CYM500/zta-migration-lab/node-reset/reset.yaml:75:7
+
+73
+74     # --------------------------------------------------------- restore
+75     - name: Verify golden image checksum
+         ^ column 7
+
+fatal: [tpi2-4]: FAILED! => {"changed": false, "changed_when_result": false, "cmd": "cd /data/golden && sha256sum -c rootfs.sha256\n", "delta": "0:00:00.014091", "end": "2026-10-11 00:48:33.809658", "msg": "The command exited with a non-zero return code.", "rc": 1, "start": "2026-10-11 00:48:33.795567", "stderr": "sha256sum: /data/golden/rootfs.img.zst.new: No such file or directory\nsha256sum: WARNING: 1 listed file could not be read", "stderr_lines": ["sha256sum: /data/golden/rootfs.img.zst.new: No such file or directory", "sha256sum: WARNING: 1 listed file could not be read"], "stdout": "/data/golden/rootfs.img.zst.new: FAILED open or read", "stdout_lines": ["/data/golden/rootfs.img.zst.new: FAILED open or read"]}
+
+PLAY RECAP *****************************************************************************************************************************************************************
+tpi2-4                     : ok=7    changed=3    unreachable=0    failed=1    skipped=1    rescued=0    ignored=0
+```
+
+Run manually on the node
+
+```
+ubuntu@tpi2-4:~$ cd /data/golden
+ubuntu@tpi2-4:/data/golden$ cat rootfs.sha256
+99d7f29953b69f4c37198fb260c7f23cd0c42fbf4f7ef8abd4da434f4276f872  /data/golden/rootfs.img.zst.new
+ubuntu@tpi2-4:/data/golden$ sudo sed -i 's|[^ ]*rootfs\.img\.zst\.new$|rootfs.img.zst|' rootfs.sha256
+ubuntu@tpi2-4:/data/golden$ cat rootfs.sha256
+99d7f29953b69f4c37198fb260c7f23cd0c42fbf4f7ef8abd4da434f4276f872  rootfs.img.zst
+ubuntu@tpi2-4:/data/golden$ sha256sum -c rootfs.sha256
+rootfs.img.zst: OK
+```
+
+Two defects turned up in the first full reset, and both failed safely before anything was written. The checksum file named the temporary .new file, and the restore used pipefail under dash.
+
+```
+$ ansible-playbook -i inventory.yaml reset.yaml -l tpi2-4 --tags restore,to-main,verify
+
+PLAY [Reset node to golden state] ******************************************************************************************************************************************
+
+TASK [Gathering Facts] *****************************************************************************************************************************************************
+ok: [tpi2-4]
+
+TASK [Verify golden image checksum] ****************************************************************************************************************************************
+ok: [tpi2-4]
+
+TASK [Restore golden image onto eMMC root partition] ***********************************************************************************************************************
+changed: [tpi2-4]
+
+TASK [Run filesystem check on restored root] *******************************************************************************************************************************
+ok: [tpi2-4]
+
+TASK [Mount restored root and confirm it is bootable] **********************************************************************************************************************
+changed: [tpi2-4]
+
+TASK [Confirm restored extlinux.conf present on main root] *****************************************************************************************************************
+ok: [tpi2-4]
+
+TASK [Unmount restored root] ***********************************************************************************************************************************************
+changed: [tpi2-4]
+
+TASK [Disable recovery boot (recovery renames its own extlinux)] ***********************************************************************************************************
+changed: [tpi2-4]
+
+TASK [Reboot into restored main OS (scan falls through to eMMC)] ***********************************************************************************************************
+changed: [tpi2-4]
+
+TASK [Verify main OS booted from eMMC] *************************************************************************************************************************************
+ok: [tpi2-4]
+
+TASK [Read golden image provenance marker] *********************************************************************************************************************************
+ok: [tpi2-4]
+
+TASK [Report reset provenance (journal this)] ******************************************************************************************************************************
+ok: [tpi2-4] => {
+    "msg": "tpi2-4 restored to golden: tpi2-4 2026-10-11T00:23:24Z phase-0 baseline"
+}
+
+PLAY RECAP *****************************************************************************************************************************************************************
+tpi2-4                     : ok=12   changed=5    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0
+```
+
+There was a new `node-reset` playbook added (`setup-recovery.yaml`), and it is run on the remaining nodes to ensure recovery is streamlined. It was developed on a branch (`node-reset-setup-playbook`) and merged into `main`.
+
+Output from the runs on each node.
+`tpi2-1`
+```
+$ ansible-playbook -i inventory.yaml setup-recovery.yaml -l tpi2-1 -e confirm_wipe_nvme=yes
+
+PLAY [Set up recovery OS and data partition] *******************************************************************************************************************************
+
+TASK [Gathering Facts] *****************************************************************************************************************************************************
+ok: [tpi2-1]
+
+TASK [Require explicit confirmation (erases the NVMe)] *********************************************************************************************************************
+ok: [tpi2-1]
+
+TASK [Read NVMe partition layout] ******************************************************************************************************************************************
+ok: [tpi2-1]
+
+TASK [Classify the layout] *************************************************************************************************************************************************
+ok: [tpi2-1]
+
+TASK [Classify the layout (already set up?)] *******************************************************************************************************************************
+ok: [tpi2-1]
+
+TASK [Already set up, nothing to do] ***************************************************************************************************************************************
+skipping: [tpi2-1]
+
+TASK [Skip a node that is already set up] **********************************************************************************************************************************
+skipping: [tpi2-1]
+
+TASK [Require the factory layout (one whole-disk partition on /data)] ******************************************************************************************************
+ok: [tpi2-1] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [Require the main OS (root on the eMMC)] ******************************************************************************************************************************
+ok: [tpi2-1]
+
+TASK [Install tools (partitioning, clone, capture)] ************************************************************************************************************************
+ok: [tpi2-1]
+
+TASK [Measure data on /data (excluding lost+found)] ************************************************************************************************************************
+ok: [tpi2-1]
+
+TASK [Refuse to erase a non-empty /data] ***********************************************************************************************************************************
+ok: [tpi2-1]
+
+TASK [Refuse if a process is using /data] **********************************************************************************************************************************
+ok: [tpi2-1]
+
+TASK [Unmount any stray recovery mount] ************************************************************************************************************************************
+ok: [tpi2-1]
+
+TASK [Unmount /data and drop its old fstab entry] **************************************************************************************************************************
+changed: [tpi2-1]
+
+TASK [Wipe and repartition the NVMe] ***************************************************************************************************************************************
+changed: [tpi2-1]
+
+TASK [Create filesystems] **************************************************************************************************************************************************
+changed: [tpi2-1] => (item={'dev': '/dev/nvme0n1p1', 'label': 'recovery'})
+changed: [tpi2-1] => (item={'dev': '/dev/nvme0n1p2', 'label': 'data'})
+
+TASK [Read filesystem UUIDs] ***********************************************************************************************************************************************
+ok: [tpi2-1] => (item=/dev/nvme0n1p1)
+ok: [tpi2-1] => (item=/dev/nvme0n1p2)
+ok: [tpi2-1] => (item=/dev/mmcblk0p2)
+
+TASK [Record UUIDs] ********************************************************************************************************************************************************
+ok: [tpi2-1]
+
+TASK [Mount the new /data by UUID (nofail)] ********************************************************************************************************************************
+changed: [tpi2-1]
+
+TASK [Write the golden-image provenance marker on main (if absent)] ********************************************************************************************************
+changed: [tpi2-1]
+
+TASK [Mount the recovery partition (ephemeral)] ****************************************************************************************************************************
+changed: [tpi2-1]
+
+TASK [Clone the main root into the recovery partition] *********************************************************************************************************************
+changed: [tpi2-1]
+
+TASK [Point the recovery root and boot entry at the recovery partition] ****************************************************************************************************
+changed: [tpi2-1] => (item=/etc/fstab)
+changed: [tpi2-1] => (item=/boot/extlinux/extlinux.conf)
+
+TASK [Check for u-boot-update defaults in the recovery OS] *****************************************************************************************************************
+ok: [tpi2-1]
+
+TASK [Point u-boot-update at the recovery partition] ***********************************************************************************************************************
+ok: [tpi2-1]
+
+TASK [Label the recovery boot entries] *************************************************************************************************************************************
+changed: [tpi2-1]
+
+TASK [Disable cloud-init in the recovery OS] *******************************************************************************************************************************
+changed: [tpi2-1]
+
+TASK [Mark the recovery OS] ************************************************************************************************************************************************
+changed: [tpi2-1]
+
+TASK [Remove the golden marker from the recovery OS (it belongs to main)] **************************************************************************************************
+changed: [tpi2-1]
+
+TASK [Disable lab services in the recovery OS] *****************************************************************************************************************************
+changed: [tpi2-1] => (item=docker.socket)
+changed: [tpi2-1] => (item=docker.service)
+changed: [tpi2-1] => (item=containerd.service)
+changed: [tpi2-1] => (item=alloy.service)
+ok: [tpi2-1] => (item=k3s.service)
+ok: [tpi2-1] => (item=k3s-agent.service)
+ok: [tpi2-1] => (item=unattended-upgrades.service)
+changed: [tpi2-1] => (item=apt-daily.timer)
+changed: [tpi2-1] => (item=apt-daily-upgrade.timer)
+
+TASK [Leave the boot switch DISABLED] **************************************************************************************************************************************
+changed: [tpi2-1]
+
+TASK [Verify the recovery tree] ********************************************************************************************************************************************
+ok: [tpi2-1]
+
+TASK [Unmount the recovery partition] **************************************************************************************************************************************
+changed: [tpi2-1]
+
+TASK [Report (journal this)] ***********************************************************************************************************************************************
+ok: [tpi2-1] => {
+    "msg": "tpi2-1: recovery=fa4093c5-0fae-4f3b-92ce-9fd3d268b4d3 data=60091675-8f39-4cb2-a0a2-74a0a802b921 main=ad692498-9c48-4e70-a1b1-368301614a6f; boot switch disabled. Next: reset.yaml --tags to-recovery."
+}
+
+PLAY RECAP *****************************************************************************************************************************************************************
+tpi2-1                     : ok=33   changed=15   unreachable=0    failed=0    skipped=1    rescued=0    ignored=0
+$ ansible-playbook -i inventory.yaml reset.yaml -l tpi2-1 --tags to-recovery
+
+PLAY [Reset node to golden state] ******************************************************************************************************************************************
+
+TASK [Gathering Facts] *****************************************************************************************************************************************************
+ok: [tpi2-1]
+
+TASK [Mount recovery partition (from main OS)] *****************************************************************************************************************************
+changed: [tpi2-1]
+
+TASK [Check recovery extlinux state] ***************************************************************************************************************************************
+ok: [tpi2-1]
+
+TASK [Assert recovery extlinux exists (enabled or disabled)] ***************************************************************************************************************
+ok: [tpi2-1]
+
+TASK [Enable recovery boot (rename extlinux.conf into place)] **************************************************************************************************************
+changed: [tpi2-1]
+
+TASK [Unmount recovery partition] ******************************************************************************************************************************************
+changed: [tpi2-1]
+
+TASK [Reboot into recovery OS (NVMe wins the boot scan)] *******************************************************************************************************************
+changed: [tpi2-1]
+
+TASK [Confirm recovery OS (root on NVMe, eMMC root unmounted)] *************************************************************************************************************
+ok: [tpi2-1]
+
+PLAY RECAP *****************************************************************************************************************************************************************
+tpi2-1                     : ok=8    changed=4    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+
+$ ./capture-golden.sh tpi2-1 10.0.0.71
+capturing /dev/mmcblk0p2 on 10.0.0.71 -> /data/golden/rootfs.img.zst
+31088181248 bytes (31 GB, 29 GiB) copied, 128 s, 243 MB/s
+7449+1 records in
+7449+1 records out
+31247547904 bytes (31 GB, 29 GiB) copied, 132.081 s, 237 MB/s
+/*stdin*\            : 10.55%   (  29.1 GiB =>   3.07 GiB, /data/golden/rootfs.img.zst.new) 
+rootfs.img.zst: OK
+total 3.1G
+-rw-r--r-- 1 root root 3.1G Oct 11 02:01 rootfs.img.zst
+-rw-r--r-- 1 root root   81 Oct 11 02:01 rootfs.sha256
+captured. Record image identity in the journal:
+5b4daad9347645de04145fae9ed1286a708839a39d27b095e463e996b8587387  rootfs.img.zst
+$ ansible-playbook -i inventory.yaml reset.yaml -l tpi2-1 --tags to-main,verify
+
+PLAY [Reset node to golden state] ******************************************************************************************************************************************
+
+TASK [Gathering Facts] *****************************************************************************************************************************************************
+ok: [tpi2-1]
+
+TASK [Disable recovery boot (recovery renames its own extlinux)] ***********************************************************************************************************
+changed: [tpi2-1]
+
+TASK [Reboot into restored main OS (scan falls through to eMMC)] ***********************************************************************************************************
+changed: [tpi2-1]
+
+TASK [Verify main OS booted from eMMC] *************************************************************************************************************************************
+ok: [tpi2-1]
+
+TASK [Read golden image provenance marker] *********************************************************************************************************************************
+ok: [tpi2-1]
+
+TASK [Report reset provenance (journal this)] ******************************************************************************************************************************
+ok: [tpi2-1] => {
+    "msg": "tpi2-1 restored to golden: tpi2-1 2026-10-11T01:26:04Z phase-0 baseline"
+}
+
+PLAY RECAP *****************************************************************************************************************************************************************
+tpi2-1                     : ok=6    changed=2    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+
+$ ansible-playbook -i inventory.yaml reset.yaml -l tpi2-1
+
+PLAY [Reset node to golden state] ******************************************************************************************************************************************
+
+TASK [Gathering Facts] *****************************************************************************************************************************************************
+ok: [tpi2-1]
+
+TASK [Mount recovery partition (from main OS)] *****************************************************************************************************************************
+changed: [tpi2-1]
+
+TASK [Check recovery extlinux state] ***************************************************************************************************************************************
+ok: [tpi2-1]
+
+TASK [Assert recovery extlinux exists (enabled or disabled)] ***************************************************************************************************************
+ok: [tpi2-1]
+
+TASK [Enable recovery boot (rename extlinux.conf into place)] **************************************************************************************************************
+changed: [tpi2-1]
+
+TASK [Unmount recovery partition] ******************************************************************************************************************************************
+changed: [tpi2-1]
+
+TASK [Reboot into recovery OS (NVMe wins the boot scan)] *******************************************************************************************************************
+changed: [tpi2-1]
+
+TASK [Confirm recovery OS (root on NVMe, eMMC root unmounted)] *************************************************************************************************************
+ok: [tpi2-1]
+
+TASK [Verify golden image checksum] ****************************************************************************************************************************************
+ok: [tpi2-1]
+
+TASK [Restore golden image onto eMMC root partition] ***********************************************************************************************************************
+changed: [tpi2-1]
+
+TASK [Run filesystem check on restored root] *******************************************************************************************************************************
+ok: [tpi2-1]
+
+TASK [Mount restored root and confirm it is bootable] **********************************************************************************************************************
+changed: [tpi2-1]
+
+TASK [Confirm restored extlinux.conf present on main root] *****************************************************************************************************************
+ok: [tpi2-1]
+
+TASK [Unmount restored root] ***********************************************************************************************************************************************
+changed: [tpi2-1]
+
+TASK [Disable recovery boot (recovery renames its own extlinux)] ***********************************************************************************************************
+changed: [tpi2-1]
+
+TASK [Reboot into restored main OS (scan falls through to eMMC)] ***********************************************************************************************************
+changed: [tpi2-1]
+
+TASK [Verify main OS booted from eMMC] *************************************************************************************************************************************
+ok: [tpi2-1]
+
+TASK [Read golden image provenance marker] *********************************************************************************************************************************
+ok: [tpi2-1]
+
+TASK [Report reset provenance (journal this)] ******************************************************************************************************************************
+ok: [tpi2-1] => {
+    "msg": "tpi2-1 restored to golden: tpi2-1 2026-10-11T01:26:04Z phase-0 baseline"
+}
+
+PLAY RECAP *****************************************************************************************************************************************************************
+tpi2-1                     : ok=19   changed=9    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0
+```
+
+`tpi2-2`
+```
+$ ansible-playbook -i inventory.yaml setup-recovery.yaml -l tpi2-2 -e confirm_wipe_nvme=yes
+
+PLAY [Set up recovery OS and data partition] *******************************************************************************************************************************
+
+TASK [Gathering Facts] *****************************************************************************************************************************************************
+ok: [tpi2-2]
+
+TASK [Require explicit confirmation (erases the NVMe)] *********************************************************************************************************************
+ok: [tpi2-2]
+
+TASK [Read NVMe partition layout] ******************************************************************************************************************************************
+ok: [tpi2-2]
+
+TASK [Classify the layout] *************************************************************************************************************************************************
+ok: [tpi2-2]
+
+TASK [Classify the layout (already set up?)] *******************************************************************************************************************************
+ok: [tpi2-2]
+
+TASK [Already set up, nothing to do] ***************************************************************************************************************************************
+skipping: [tpi2-2]
+
+TASK [Skip a node that is already set up] **********************************************************************************************************************************
+skipping: [tpi2-2]
+
+TASK [Require the factory layout (one whole-disk partition on /data)] ******************************************************************************************************
+ok: [tpi2-2] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [Require the main OS (root on the eMMC)] ******************************************************************************************************************************
+ok: [tpi2-2]
+
+TASK [Install tools (partitioning, clone, capture)] ************************************************************************************************************************
+ok: [tpi2-2]
+
+TASK [Measure data on /data (excluding lost+found)] ************************************************************************************************************************
+ok: [tpi2-2]
+
+TASK [Refuse to erase a non-empty /data] ***********************************************************************************************************************************
+ok: [tpi2-2]
+
+TASK [Refuse if a process is using /data] **********************************************************************************************************************************
+ok: [tpi2-2]
+
+TASK [Unmount any stray recovery mount] ************************************************************************************************************************************
+ok: [tpi2-2]
+
+TASK [Unmount /data and drop its old fstab entry] **************************************************************************************************************************
+changed: [tpi2-2]
+
+TASK [Wipe and repartition the NVMe] ***************************************************************************************************************************************
+changed: [tpi2-2]
+
+TASK [Create filesystems] **************************************************************************************************************************************************
+changed: [tpi2-2] => (item={'dev': '/dev/nvme0n1p1', 'label': 'recovery'})
+changed: [tpi2-2] => (item={'dev': '/dev/nvme0n1p2', 'label': 'data'})
+
+TASK [Read filesystem UUIDs] ***********************************************************************************************************************************************
+ok: [tpi2-2] => (item=/dev/nvme0n1p1)
+ok: [tpi2-2] => (item=/dev/nvme0n1p2)
+ok: [tpi2-2] => (item=/dev/mmcblk0p2)
+
+TASK [Record UUIDs] ********************************************************************************************************************************************************
+ok: [tpi2-2]
+
+TASK [Mount the new /data by UUID (nofail)] ********************************************************************************************************************************
+changed: [tpi2-2]
+
+TASK [Write the golden-image provenance marker on main (if absent)] ********************************************************************************************************
+changed: [tpi2-2]
+
+TASK [Mount the recovery partition (ephemeral)] ****************************************************************************************************************************
+changed: [tpi2-2]
+
+TASK [Clone the main root into the recovery partition] *********************************************************************************************************************
+changed: [tpi2-2]
+
+TASK [Point the recovery root and boot entry at the recovery partition] ****************************************************************************************************
+changed: [tpi2-2] => (item=/etc/fstab)
+changed: [tpi2-2] => (item=/boot/extlinux/extlinux.conf)
+
+TASK [Check for u-boot-update defaults in the recovery OS] *****************************************************************************************************************
+ok: [tpi2-2]
+
+TASK [Point u-boot-update at the recovery partition] ***********************************************************************************************************************
+ok: [tpi2-2]
+
+TASK [Label the recovery boot entries] *************************************************************************************************************************************
+changed: [tpi2-2]
+
+TASK [Disable cloud-init in the recovery OS] *******************************************************************************************************************************
+changed: [tpi2-2]
+
+TASK [Mark the recovery OS] ************************************************************************************************************************************************
+changed: [tpi2-2]
+
+TASK [Remove the golden marker from the recovery OS (it belongs to main)] **************************************************************************************************
+changed: [tpi2-2]
+
+TASK [Disable lab services in the recovery OS] *****************************************************************************************************************************
+changed: [tpi2-2] => (item=docker.socket)
+changed: [tpi2-2] => (item=docker.service)
+changed: [tpi2-2] => (item=containerd.service)
+changed: [tpi2-2] => (item=alloy.service)
+ok: [tpi2-2] => (item=k3s.service)
+ok: [tpi2-2] => (item=k3s-agent.service)
+ok: [tpi2-2] => (item=unattended-upgrades.service)
+changed: [tpi2-2] => (item=apt-daily.timer)
+changed: [tpi2-2] => (item=apt-daily-upgrade.timer)
+
+TASK [Leave the boot switch DISABLED] **************************************************************************************************************************************
+changed: [tpi2-2]
+
+TASK [Verify the recovery tree] ********************************************************************************************************************************************
+ok: [tpi2-2]
+
+TASK [Unmount the recovery partition] **************************************************************************************************************************************
+changed: [tpi2-2]
+
+TASK [Report (journal this)] ***********************************************************************************************************************************************
+ok: [tpi2-2] => {
+    "msg": "tpi2-2: recovery=10d87b41-65ae-43c1-98c8-6fb202f3bfcc data=9344303b-2e04-4e0d-8731-85e787a7c021 main=ad692498-9c48-4e70-a1b1-368301614a6f; boot switch disabled. Next: reset.yaml --tags to-recovery."
+}
+
+PLAY RECAP *****************************************************************************************************************************************************************
+tpi2-2                     : ok=33   changed=15   unreachable=0    failed=0    skipped=1    rescued=0    ignored=0
+$ ansible-playbook -i inventory.yaml reset.yaml -l tpi2-2 --tags to-recovery
+
+PLAY [Reset node to golden state] ******************************************************************************************************************************************
+
+TASK [Gathering Facts] *****************************************************************************************************************************************************
+ok: [tpi2-2]
+
+TASK [Mount recovery partition (from main OS)] *****************************************************************************************************************************
+changed: [tpi2-2]
+
+TASK [Check recovery extlinux state] ***************************************************************************************************************************************
+ok: [tpi2-2]
+
+TASK [Assert recovery extlinux exists (enabled or disabled)] ***************************************************************************************************************
+ok: [tpi2-2]
+
+TASK [Enable recovery boot (rename extlinux.conf into place)] **************************************************************************************************************
+changed: [tpi2-2]
+
+TASK [Unmount recovery partition] ******************************************************************************************************************************************
+changed: [tpi2-2]
+
+TASK [Reboot into recovery OS (NVMe wins the boot scan)] *******************************************************************************************************************
+changed: [tpi2-2]
+
+TASK [Confirm recovery OS (root on NVMe, eMMC root unmounted)] *************************************************************************************************************
+ok: [tpi2-2]
+
+PLAY RECAP *****************************************************************************************************************************************************************
+tpi2-2                     : ok=8    changed=4    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+
+$ ./capture-golden.sh tpi2-2 10.0.0.72
+Warning: Permanently added '10.0.0.72' (ED25519) to the list of known hosts.
+Warning: Permanently added '10.0.0.72' (ED25519) to the list of known hosts.
+capturing /dev/mmcblk0p2 on 10.0.0.72 -> /data/golden/rootfs.img.zst
+Warning: Permanently added '10.0.0.72' (ED25519) to the list of known hosts.
+30970740736 bytes (31 GB, 29 GiB) copied, 123 s, 252 MB/s
+7449+1 records in
+7449+1 records out
+31247547904 bytes (31 GB, 29 GiB) copied, 127.355 s, 245 MB/s
+/*stdin*\            : 11.04%   (  29.1 GiB =>   3.21 GiB, /data/golden/rootfs.img.zst.new) 
+rootfs.img.zst: OK
+Warning: Permanently added '10.0.0.72' (ED25519) to the list of known hosts.
+total 3.3G
+-rw-r--r-- 1 root root 3.3G Oct 11 02:15 rootfs.img.zst
+-rw-r--r-- 1 root root   81 Oct 11 02:15 rootfs.sha256
+captured. Record image identity in the journal:
+Warning: Permanently added '10.0.0.72' (ED25519) to the list of known hosts.
+5be343c326bac717daa4befeeb2f0786fe1584e4b21b408537cc055a20436be3  rootfs.img.zst
+$ ansible-playbook -i inventory.yaml reset.yaml -l tpi2-2 --tags to-main,verify
+
+PLAY [Reset node to golden state] ******************************************************************************************************************************************
+
+TASK [Gathering Facts] *****************************************************************************************************************************************************
+ok: [tpi2-2]
+
+TASK [Disable recovery boot (recovery renames its own extlinux)] ***********************************************************************************************************
+changed: [tpi2-2]
+
+TASK [Reboot into restored main OS (scan falls through to eMMC)] ***********************************************************************************************************
+changed: [tpi2-2]
+
+TASK [Verify main OS booted from eMMC] *************************************************************************************************************************************
+ok: [tpi2-2]
+
+TASK [Read golden image provenance marker] *********************************************************************************************************************************
+ok: [tpi2-2]
+
+TASK [Report reset provenance (journal this)] ******************************************************************************************************************************
+ok: [tpi2-2] => {
+    "msg": "tpi2-2 restored to golden: tpi2-2 2026-10-11T01:34:04Z phase-0 baseline"
+}
+
+PLAY RECAP *****************************************************************************************************************************************************************
+tpi2-2                     : ok=6    changed=2    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+
+$ ansible-playbook -i inventory.yaml reset.yaml -l tpi2-2
+
+PLAY [Reset node to golden state] ******************************************************************************************************************************************
+
+TASK [Gathering Facts] *****************************************************************************************************************************************************
+ok: [tpi2-2]
+
+TASK [Mount recovery partition (from main OS)] *****************************************************************************************************************************
+changed: [tpi2-2]
+
+TASK [Check recovery extlinux state] ***************************************************************************************************************************************
+ok: [tpi2-2]
+
+TASK [Assert recovery extlinux exists (enabled or disabled)] ***************************************************************************************************************
+ok: [tpi2-2]
+
+TASK [Enable recovery boot (rename extlinux.conf into place)] **************************************************************************************************************
+changed: [tpi2-2]
+
+TASK [Unmount recovery partition] ******************************************************************************************************************************************
+changed: [tpi2-2]
+
+TASK [Reboot into recovery OS (NVMe wins the boot scan)] *******************************************************************************************************************
+changed: [tpi2-2]
+
+TASK [Confirm recovery OS (root on NVMe, eMMC root unmounted)] *************************************************************************************************************
+ok: [tpi2-2]
+
+TASK [Verify golden image checksum] ****************************************************************************************************************************************
+ok: [tpi2-2]
+
+TASK [Restore golden image onto eMMC root partition] ***********************************************************************************************************************
+changed: [tpi2-2]
+
+TASK [Run filesystem check on restored root] *******************************************************************************************************************************
+ok: [tpi2-2]
+
+TASK [Mount restored root and confirm it is bootable] **********************************************************************************************************************
+changed: [tpi2-2]
+
+TASK [Confirm restored extlinux.conf present on main root] *****************************************************************************************************************
+ok: [tpi2-2]
+
+TASK [Unmount restored root] ***********************************************************************************************************************************************
+changed: [tpi2-2]
+
+TASK [Disable recovery boot (recovery renames its own extlinux)] ***********************************************************************************************************
+changed: [tpi2-2]
+
+TASK [Reboot into restored main OS (scan falls through to eMMC)] ***********************************************************************************************************
+changed: [tpi2-2]
+
+TASK [Verify main OS booted from eMMC] *************************************************************************************************************************************
+ok: [tpi2-2]
+
+TASK [Read golden image provenance marker] *********************************************************************************************************************************
+ok: [tpi2-2]
+
+TASK [Report reset provenance (journal this)] ******************************************************************************************************************************
+ok: [tpi2-2] => {
+    "msg": "tpi2-2 restored to golden: tpi2-2 2026-10-11T01:34:04Z phase-0 baseline"
+}
+
+PLAY RECAP *****************************************************************************************************************************************************************
+tpi2-2                     : ok=19   changed=9    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0
+```
+
+The node `tpi2-3` needs a postgres reset due to previous defects.
+
+```
+$ sudo docker images --digests | grep -E 'postgres|nginx|samba|socat'
+alpine/socat    latest    sha256:82ad20f6f6e29b91ff33b6662d24063522b1378f08fd8569cd3ab412cac13f50   82ad20f6f6e2   7 days ago      24.4MB
+postgres        16        sha256:1a6ab3f5345eb6dbe04a1349529caabdb0ab09293a09590fad07b2246bfa4b54   1a6ab3f5345e   3 weeks ago     663MB
+nginx           1.27      sha256:6784fb0834aa7dbbe12e3d7471e69c290df3e6ba810dc38b34ae33d3c1c05f7d   6784fb0834aa   18 months ago   284MB
+dperson/samba   latest    sha256:66088b78a19810dd1457a8f39340e95e663c728083efa5fe7dc0d40b2478e869   66088b78a198   5 years ago     83MB
+```
+
+Ansible run for resetting `tpi2-3`
+
+```
+$ ansible-playbook -i inventory.yaml --vault-password-file ../.vault-pass site.yaml
+
+PLAY [Deploy protected workloads] ******************************************************************************************************************************************
+
+TASK [Gathering Facts] *****************************************************************************************************************************************************
+ok: [tpi2-3]
+
+TASK [Install Docker Engine and compose plugin] ****************************************************************************************************************************
+ok: [tpi2-3]
+
+TASK [Enable and start Docker] *********************************************************************************************************************************************
+ok: [tpi2-3]
+
+TASK [Create directories] **************************************************************************************************************************************************
+changed: [tpi2-3] => (item=/opt/workloads)
+changed: [tpi2-3] => (item=/opt/workloads/www)
+changed: [tpi2-3] => (item=/opt/workloads/share)
+
+TASK [Intranet web content] ************************************************************************************************************************************************
+changed: [tpi2-3]
+
+TASK [Seed file share] *****************************************************************************************************************************************************
+changed: [tpi2-3]
+
+TASK [Template database init (per-role users and grants)] ******************************************************************************************************************
+changed: [tpi2-3]
+
+TASK [Template compose file] ***********************************************************************************************************************************************
+changed: [tpi2-3]
+
+TASK [Start workloads] *****************************************************************************************************************************************************
+changed: [tpi2-3]
+
+TASK [Verify intranet web responds] ****************************************************************************************************************************************
+ok: [tpi2-3]
+
+TASK [Verify postgres accepts connections] *********************************************************************************************************************************
+FAILED - RETRYING: [tpi2-3]: Verify postgres accepts connections (5 retries left).
+ok: [tpi2-3]
+
+PLAY RECAP *****************************************************************************************************************************************************************
+tpi2-3                     : ok=11   changed=6    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0
+```
+
+There was a failure that needed to be fixed related to permissions. Phase 0 most likely never had these roles either. Its deploy checked only pg_isready, and the file permissions were the same. Any phase-0 note that says the workloads were verified should be read in that light.
+
+`tpi2-3` Ansible run with additional checks.
+```
+$ ansible-playbook -i inventory.yaml --vault-password-file ../.vault-pass site.yaml
+
+PLAY [Deploy protected workloads] ******************************************************************************************************************************************
+
+TASK [Gathering Facts] *****************************************************************************************************************************************************
+ok: [tpi2-3]
+
+TASK [Install Docker Engine and compose plugin] ****************************************************************************************************************************
+ok: [tpi2-3]
+
+TASK [Enable and start Docker] *********************************************************************************************************************************************
+ok: [tpi2-3]
+
+TASK [Create directories] **************************************************************************************************************************************************
+changed: [tpi2-3] => (item=/opt/workloads)
+changed: [tpi2-3] => (item=/opt/workloads/www)
+changed: [tpi2-3] => (item=/opt/workloads/share)
+
+TASK [Intranet web content] ************************************************************************************************************************************************
+changed: [tpi2-3]
+
+TASK [Seed file share] *****************************************************************************************************************************************************
+changed: [tpi2-3]
+
+TASK [Template database init (per-role users and grants)] ******************************************************************************************************************
+changed: [tpi2-3]
+
+TASK [Template compose file] ***********************************************************************************************************************************************
+changed: [tpi2-3]
+
+TASK [Start workloads] *****************************************************************************************************************************************************
+changed: [tpi2-3]
+
+TASK [Verify intranet web responds] ****************************************************************************************************************************************
+ok: [tpi2-3]
+
+TASK [Verify postgres accepts connections] *********************************************************************************************************************************
+FAILED - RETRYING: [tpi2-3]: Verify postgres accepts connections (5 retries left).
+ok: [tpi2-3]
+
+TASK [Verify init.sql ran (roles exist, CONNECT matches the access model)] *************************************************************************************************
+ok: [tpi2-3]
+
+PLAY RECAP *****************************************************************************************************************************************************************
+tpi2-3                     : ok=12   changed=6    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0
+```
+
+Verification that the grants exist in the postgres database.
+
+```
+$ ssh tpi2-3 "sudo docker exec workloads-postgres-1 psql -U postgres -d labdb -tAc \"
+>   SELECT r, has_database_privilege(r, 'labdb', 'CONNECT')
+>   FROM unnest(array['remote-admin','remote-developer','remote-analyst','remote-contractor']) r\""
+remote-admin|t
+remote-developer|t
+remote-analyst|t
+remote-contractor|f
+```
+
+Setting up recovery for `tpi2-3`
+
+```
+$ ansible-playbook -i inventory.yaml setup-recovery.yaml -l tpi2-3 -e confirm_wipe_nvme=yes
+
+PLAY [Set up recovery OS and data partition] *******************************************************************************************************************************
+
+TASK [Gathering Facts] *****************************************************************************************************************************************************
+ok: [tpi2-3]
+
+TASK [Require explicit confirmation (erases the NVMe)] *********************************************************************************************************************
+ok: [tpi2-3]
+
+TASK [Read NVMe partition layout] ******************************************************************************************************************************************
+ok: [tpi2-3]
+
+TASK [Classify the layout] *************************************************************************************************************************************************
+ok: [tpi2-3]
+
+TASK [Classify the layout (already set up?)] *******************************************************************************************************************************
+ok: [tpi2-3]
+
+TASK [Already set up, nothing to do] ***************************************************************************************************************************************
+skipping: [tpi2-3]
+
+TASK [Skip a node that is already set up] **********************************************************************************************************************************
+skipping: [tpi2-3]
+
+TASK [Require the factory layout (one whole-disk partition on /data)] ******************************************************************************************************
+ok: [tpi2-3] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [Require the main OS (root on the eMMC)] ******************************************************************************************************************************
+ok: [tpi2-3]
+
+TASK [Install tools (partitioning, clone, capture)] ************************************************************************************************************************
+ok: [tpi2-3]
+
+TASK [Measure data on /data (excluding lost+found)] ************************************************************************************************************************
+ok: [tpi2-3]
+
+TASK [Refuse to erase a non-empty /data] ***********************************************************************************************************************************
+ok: [tpi2-3]
+
+TASK [Refuse if a process is using /data] **********************************************************************************************************************************
+ok: [tpi2-3]
+
+TASK [Unmount any stray recovery mount] ************************************************************************************************************************************
+ok: [tpi2-3]
+
+TASK [Unmount /data and drop its old fstab entry] **************************************************************************************************************************
+changed: [tpi2-3]
+
+TASK [Wipe and repartition the NVMe] ***************************************************************************************************************************************
+changed: [tpi2-3]
+
+TASK [Create filesystems] **************************************************************************************************************************************************
+changed: [tpi2-3] => (item={'dev': '/dev/nvme0n1p1', 'label': 'recovery'})
+changed: [tpi2-3] => (item={'dev': '/dev/nvme0n1p2', 'label': 'data'})
+
+TASK [Read filesystem UUIDs] ***********************************************************************************************************************************************
+ok: [tpi2-3] => (item=/dev/nvme0n1p1)
+ok: [tpi2-3] => (item=/dev/nvme0n1p2)
+ok: [tpi2-3] => (item=/dev/mmcblk0p2)
+
+TASK [Record UUIDs] ********************************************************************************************************************************************************
+ok: [tpi2-3]
+
+TASK [Mount the new /data by UUID (nofail)] ********************************************************************************************************************************
+changed: [tpi2-3]
+
+TASK [Write the golden-image provenance marker on main (if absent)] ********************************************************************************************************
+changed: [tpi2-3]
+
+TASK [Mount the recovery partition (ephemeral)] ****************************************************************************************************************************
+changed: [tpi2-3]
+
+TASK [Clone the main root into the recovery partition] *********************************************************************************************************************
+changed: [tpi2-3]
+
+TASK [Point the recovery root and boot entry at the recovery partition] ****************************************************************************************************
+changed: [tpi2-3] => (item=/etc/fstab)
+changed: [tpi2-3] => (item=/boot/extlinux/extlinux.conf)
+
+TASK [Check for u-boot-update defaults in the recovery OS] *****************************************************************************************************************
+ok: [tpi2-3]
+
+TASK [Point u-boot-update at the recovery partition] ***********************************************************************************************************************
+ok: [tpi2-3]
+
+TASK [Label the recovery boot entries] *************************************************************************************************************************************
+changed: [tpi2-3]
+
+TASK [Disable cloud-init in the recovery OS] *******************************************************************************************************************************
+changed: [tpi2-3]
+
+TASK [Mark the recovery OS] ************************************************************************************************************************************************
+changed: [tpi2-3]
+
+TASK [Remove the golden marker from the recovery OS (it belongs to main)] **************************************************************************************************
+changed: [tpi2-3]
+
+TASK [Disable lab services in the recovery OS] *****************************************************************************************************************************
+changed: [tpi2-3] => (item=docker.socket)
+changed: [tpi2-3] => (item=docker.service)
+changed: [tpi2-3] => (item=containerd.service)
+changed: [tpi2-3] => (item=alloy.service)
+ok: [tpi2-3] => (item=k3s.service)
+ok: [tpi2-3] => (item=k3s-agent.service)
+ok: [tpi2-3] => (item=unattended-upgrades.service)
+changed: [tpi2-3] => (item=apt-daily.timer)
+changed: [tpi2-3] => (item=apt-daily-upgrade.timer)
+
+TASK [Leave the boot switch DISABLED] **************************************************************************************************************************************
+changed: [tpi2-3]
+
+TASK [Verify the recovery tree] ********************************************************************************************************************************************
+ok: [tpi2-3]
+
+TASK [Unmount the recovery partition] **************************************************************************************************************************************
+changed: [tpi2-3]
+
+TASK [Report (journal this)] ***********************************************************************************************************************************************
+ok: [tpi2-3] => {
+    "msg": "tpi2-3: recovery=4e08b598-3412-47c4-9b11-66068edac57e data=4bf0d8bb-be97-4c71-b498-1d70c984721d main=ad692498-9c48-4e70-a1b1-368301614a6f; boot switch disabled. Next: reset.yaml --tags to-recovery."
+}
+
+PLAY RECAP *****************************************************************************************************************************************************************
+tpi2-3                     : ok=33   changed=15   unreachable=0    failed=0    skipped=1    rescued=0    ignored=0   
+
+$ ansible-playbook -i inventory.yaml reset.yaml -l tpi2-3 --tags to-recovery
+
+PLAY [Reset node to golden state] ******************************************************************************************************************************************
+
+TASK [Gathering Facts] *****************************************************************************************************************************************************
+ok: [tpi2-3]
+
+TASK [Read NVMe partition labels] ******************************************************************************************************************************************
+ok: [tpi2-3]
+
+TASK [Require the node-reset layout (recovery + data partitions)] **********************************************************************************************************
+ok: [tpi2-3]
+
+TASK [Mount recovery partition (from main OS)] *****************************************************************************************************************************
+changed: [tpi2-3]
+
+TASK [Check recovery extlinux state] ***************************************************************************************************************************************
+ok: [tpi2-3]
+
+TASK [Assert recovery extlinux exists (enabled or disabled)] ***************************************************************************************************************
+ok: [tpi2-3]
+
+TASK [Enable recovery boot (rename extlinux.conf into place)] **************************************************************************************************************
+changed: [tpi2-3]
+
+TASK [Unmount recovery partition] ******************************************************************************************************************************************
+changed: [tpi2-3]
+
+TASK [Reboot into recovery OS (NVMe wins the boot scan)] *******************************************************************************************************************
+changed: [tpi2-3]
+
+TASK [Confirm recovery OS (root on NVMe, eMMC root unmounted)] *************************************************************************************************************
+ok: [tpi2-3]
+
+PLAY RECAP *****************************************************************************************************************************************************************
+tpi2-3                     : ok=10   changed=4    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+
+$ ./capture-golden.sh tpi2-3 10.0.0.73
+capturing /dev/mmcblk0p2 on 10.0.0.73 -> /data/golden/rootfs.img.zst
+31117541376 bytes (31 GB, 29 GiB) copied, 124 s, 251 MB/s
+7449+1 records in
+7449+1 records out
+31247547904 bytes (31 GB, 29 GiB) copied, 127.977 s, 244 MB/s
+/*stdin*\            :  9.47%   (  29.1 GiB =>   2.76 GiB, /data/golden/rootfs.img.zst.new) 
+rootfs.img.zst: OK
+Warning: Permanently added '10.0.0.73' (ED25519) to the list of known hosts.
+total 2.8G
+-rw-r--r-- 1 root root 2.8G Oct 11 02:35 rootfs.img.zst
+-rw-r--r-- 1 root root   81 Oct 11 02:35 rootfs.sha256
+captured. Record image identity in the journal:
+51afc56aea8cceab90d15c0473bd41e80a46c64acaefb13ba5ac0ab342fb1019  rootfs.img.zst
+$ ansible-playbook -i inventory.yaml reset.yaml -l tpi2-3 --tags to-main,verify
+
+PLAY [Reset node to golden state] ******************************************************************************************************************************************
+
+TASK [Gathering Facts] *****************************************************************************************************************************************************
+ok: [tpi2-3]
+
+TASK [Read NVMe partition labels] ******************************************************************************************************************************************
+ok: [tpi2-3]
+
+TASK [Require the node-reset layout (recovery + data partitions)] **********************************************************************************************************
+ok: [tpi2-3]
+
+TASK [Disable recovery boot (recovery renames its own extlinux)] ***********************************************************************************************************
+changed: [tpi2-3]
+
+TASK [Reboot into restored main OS (scan falls through to eMMC)] ***********************************************************************************************************
+changed: [tpi2-3]
+
+TASK [Verify main OS booted from eMMC] *************************************************************************************************************************************
+ok: [tpi2-3]
+
+TASK [Read golden image provenance marker] *********************************************************************************************************************************
+ok: [tpi2-3]
+
+TASK [Report reset provenance (journal this)] ******************************************************************************************************************************
+ok: [tpi2-3] => {
+    "msg": "tpi2-3 restored to golden: tpi2-3 2026-10-11T02:29:50Z phase-0 baseline"
+}
+
+PLAY RECAP *****************************************************************************************************************************************************************
+tpi2-3                     : ok=8    changed=2    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+
+$ ansible-playbook -i inventory.yaml reset.yaml -l tpi2-3
+
+PLAY [Reset node to golden state] ******************************************************************************************************************************************
+
+TASK [Gathering Facts] *****************************************************************************************************************************************************
+ok: [tpi2-3]
+
+TASK [Read NVMe partition labels] ******************************************************************************************************************************************
+ok: [tpi2-3]
+
+TASK [Require the node-reset layout (recovery + data partitions)] **********************************************************************************************************
+ok: [tpi2-3]
+
+TASK [Mount recovery partition (from main OS)] *****************************************************************************************************************************
+changed: [tpi2-3]
+
+TASK [Check recovery extlinux state] ***************************************************************************************************************************************
+ok: [tpi2-3]
+
+TASK [Assert recovery extlinux exists (enabled or disabled)] ***************************************************************************************************************
+ok: [tpi2-3]
+
+TASK [Enable recovery boot (rename extlinux.conf into place)] **************************************************************************************************************
+changed: [tpi2-3]
+
+TASK [Unmount recovery partition] ******************************************************************************************************************************************
+changed: [tpi2-3]
+
+TASK [Reboot into recovery OS (NVMe wins the boot scan)] *******************************************************************************************************************
+changed: [tpi2-3]
+
+TASK [Confirm recovery OS (root on NVMe, eMMC root unmounted)] *************************************************************************************************************
+ok: [tpi2-3]
+
+TASK [Verify golden image checksum] ****************************************************************************************************************************************
+ok: [tpi2-3]
+
+TASK [Restore golden image onto eMMC root partition] ***********************************************************************************************************************
+changed: [tpi2-3]
+
+TASK [Run filesystem check on restored root] *******************************************************************************************************************************
+ok: [tpi2-3]
+
+TASK [Mount restored root and confirm it is bootable] **********************************************************************************************************************
+changed: [tpi2-3]
+
+TASK [Confirm restored extlinux.conf present on main root] *****************************************************************************************************************
+ok: [tpi2-3]
+
+TASK [Unmount restored root] ***********************************************************************************************************************************************
+changed: [tpi2-3]
+
+TASK [Disable recovery boot (recovery renames its own extlinux)] ***********************************************************************************************************
+changed: [tpi2-3]
+
+TASK [Reboot into restored main OS (scan falls through to eMMC)] ***********************************************************************************************************
+changed: [tpi2-3]
+
+TASK [Verify main OS booted from eMMC] *************************************************************************************************************************************
+ok: [tpi2-3]
+
+TASK [Read golden image provenance marker] *********************************************************************************************************************************
+ok: [tpi2-3]
+
+TASK [Report reset provenance (journal this)] ******************************************************************************************************************************
+ok: [tpi2-3] => {
+    "msg": "tpi2-3 restored to golden: tpi2-3 2026-10-11T02:29:50Z phase-0 baseline"
+}
+
+PLAY RECAP *****************************************************************************************************************************************************************
+tpi2-3                     : ok=21   changed=9    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0
+```
