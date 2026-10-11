@@ -38,10 +38,15 @@
       "clientId": "{{ client.client_id }}",
       "protocol": "openid-connect",
       "enabled": true,
-      "publicClient": false,
+      "publicClient": {{ (client.public | default(false)) | to_json }},
+{% if not (client.public | default(false)) %}
       "secret": "{{ client.secret }}",
+{% endif %}
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": true,
+{% if client.pkce | default(false) %}
+      "attributes": {"pkce.code.challenge.method": "S256"},
+{% endif %}
       "redirectUris": {{ client.redirect_uris | to_json }},
       "webOrigins": ["+"],
       "defaultClientScopes": ["openid", "profile", "email", "roles"],
@@ -58,7 +63,17 @@
             "access.token.claim": "true",
             "userinfo.token.claim": "true"
           }
-        }
+        }{% if client.audience_mapper | default(false) %},
+        {
+          "name": "audience-{{ client.client_id }}",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.client.audience": "{{ client.client_id }}",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }{% endif %}
       ]
     }{{ "," if not loop.last }}
 {% endfor %}

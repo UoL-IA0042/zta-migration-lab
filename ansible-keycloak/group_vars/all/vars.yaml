@@ -12,6 +12,16 @@ keycloak_port: 8443
 keycloak_http_port: 8080           # plain HTTP on the lab network
 keycloak_install_dir: /opt/keycloak
 
+# --- Public issuer (Phase 2+) ------------------------------------------
+# With LAB_EDGE_IP set (terraform output edge_host_public_ip), Keycloak is
+# published through the AWS edge host's reverse proxy and that https URL
+# becomes the issuer for every client (ZTNA control planes, tunnelers).
+# Unset: phase-0 behaviour, issuer http://<keycloak_host>:<keycloak_http_port>.
+# From the environment so no public address is committed.
+lab_edge_ip: "{{ lookup('env', 'LAB_EDGE_IP') }}"
+keycloak_public_url: "{{ ('https://idp.' ~ (lab_edge_ip | replace('.', '-')) ~ '.sslip.io') if lab_edge_ip else '' }}"
+keycloak_base_url: "{{ keycloak_public_url or ('http://' ~ keycloak_host ~ ':' ~ keycloak_http_port | string) }}"
+
 # Bootstrap admin (rotate after first login)
 keycloak_admin_user: admin
 keycloak_admin_password: "{{ vault_keycloak_admin_password }}"
@@ -50,10 +60,16 @@ lab_users:
 
 # OIDC clients for the ZTNA control planes (Phase 2).
 oidc_clients:
+  # Ziti tunnelers log in with authorization code + PKCE and no secret,
+  # so the client is public; tokens must carry aud=openziti for the
+  # controller's ext-jwt-signer (audience mapper).
   - client_id: openziti
-    secret: "{{ vault_openziti_secret }}"
+    secret: "{{ vault_openziti_secret }}"   # unused while public
+    public: true
+    pkce: true
+    audience_mapper: true
     redirect_uris:
-      - "https://ziti.lab.example.com/*"
+      - "http://localhost:20314/auth/callback"   # Ziti tunnelers (OpenZiti OIDC reference)
   - client_id: netbird
     secret: "{{ vault_netbird_secret }}"
     redirect_uris:

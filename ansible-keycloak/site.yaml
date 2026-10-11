@@ -45,6 +45,23 @@
         mode: "0640"
       register: compose_file
 
+    # --import-realm skips a realm that already exists, so realm changes
+    # (e.g. the Phase 2 openziti client) need a fresh database.
+    - name: Clean redeploy (-e keycloak_reset=yes) - removes the Keycloak database
+      when: keycloak_reset | default('no') | bool
+      block:
+        - name: Stop the stack
+          ansible.builtin.command:
+            cmd: docker compose down
+            chdir: "{{ keycloak_install_dir }}"
+          changed_when: true
+          failed_when: false        # first deploy: nothing to stop
+
+        - name: Remove the Keycloak database
+          ansible.builtin.file:
+            path: "{{ keycloak_install_dir }}/pgdata"
+            state: absent
+
     - name: Start (or restart on config change) Keycloak stack
       ansible.builtin.command:
         cmd: docker compose up -d {{ '--force-recreate' if (realm_file.changed or compose_file.changed) else '' }}
@@ -66,6 +83,15 @@
         url: "http://{{ keycloak_host }}:{{ keycloak_http_port }}/realms/{{ realm_name }}/.well-known/openid-configuration"
         status_code: 200
       register: oidc_discovery
+
+    - name: Require the expected issuer (ZTNA signers match it exactly)
+      ansible.builtin.assert:
+        that: oidc_discovery.json.issuer == keycloak_base_url ~ '/realms/' ~ realm_name
+        fail_msg: >-
+          issuer is {{ oidc_discovery.json.issuer }}, expected
+          {{ keycloak_base_url }}/realms/{{ realm_name }} (realm not re-imported?
+          run with -e keycloak_reset=yes)
+        quiet: true
 
     - name: Report OIDC issuer for ZTNA integration
       ansible.builtin.debug:

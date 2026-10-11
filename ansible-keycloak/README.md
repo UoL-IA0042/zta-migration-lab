@@ -44,6 +44,27 @@ IdP integration.
   ZTNA component refuses http issuers — NetBird in particular expects
   https in production configurations.
 
+## Phase 2: public issuer
+
+With the edge host up (`terraform-aws`, `enable_openziti=true`), Keycloak is
+published at `https://idp.<edge-ip-dashed>.sslip.io` through the edge
+host's reverse proxy and the site-to-site tunnel, and that URL becomes the
+issuer (`KC_HOSTNAME`, with `KC_PROXY_HEADERS=xforwarded`). The realm
+change for the `openziti` client (public PKCE client, tunneler callback
+`http://localhost:20314/auth/callback`, audience mapper) needs a fresh
+import:
+
+```bash
+export LAB_EDGE_IP=$(terraform -chdir=../terraform-aws output -raw edge_host_public_ip)
+ansible-playbook -i inventory.yaml --vault-password-file ../.vault-pass site.yaml -e keycloak_reset=yes
+```
+
+`keycloak_reset=yes` stops the stack and deletes the Keycloak database
+(users, sessions, realm) before re-importing; the play then asserts the
+issuer is exactly the public URL. Without `LAB_EDGE_IP` the issuer stays
+the phase-0 `http://10.0.0.72:8080`. The golden image keeps the phase-0
+Keycloak; this redeploy is part of the Phase 2 migration.
+
 ## Verified
 
 Realm template renders to valid JSON with correct roles/users/clients;

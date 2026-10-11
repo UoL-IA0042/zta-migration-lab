@@ -29,7 +29,11 @@ services:
       KC_BOOTSTRAP_ADMIN_USERNAME: {{ keycloak_admin_user }}
       KC_BOOTSTRAP_ADMIN_PASSWORD: {{ keycloak_admin_password }}
       KC_HTTP_ENABLED: "true"
-      KC_HOSTNAME: "http://{{ keycloak_host }}:{{ keycloak_http_port }}"
+      KC_HOSTNAME: "{{ keycloak_base_url }}"
+{% if keycloak_public_url %}
+      # behind the edge host's TLS-terminating proxy (X-Forwarded-*)
+      KC_PROXY_HEADERS: xforwarded
+{% endif %}
       KC_HEALTH_ENABLED: "true"
     ports:
       - "{{ keycloak_http_port }}:8080"
