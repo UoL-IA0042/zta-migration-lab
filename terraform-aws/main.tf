@@ -106,7 +106,7 @@ resource "aws_security_group" "vpn_gateway" {
   dynamic "ingress" {
     for_each = var.enable_openziti ? [local.edge_subnet_cidr] : []
     content {
-      description = "Phase 2: edge host IdP proxy -> Keycloak via the tunnel"
+      description = "Phase 2: edge host IdP proxy to Keycloak via the tunnel"
       from_port   = var.lab_idp_port
       to_port     = var.lab_idp_port
       protocol    = "tcp"
