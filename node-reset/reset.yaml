@@ -79,9 +79,13 @@
       tags: [restore]
 
     - name: Restore golden image onto eMMC root partition
+      # bash, not the module's default /bin/sh (dash has no pipefail):
+      # without pipefail a failed decompress would still let dd succeed.
       ansible.builtin.shell: |
         set -o pipefail
         zstd -dc {{ golden_image_path }} | dd of={{ main_root_part }} bs=4M conv=fsync
+      args:
+        executable: /bin/bash
       register: restore
       changed_when: true
       tags: [restore]
