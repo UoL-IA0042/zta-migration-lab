@@ -42,10 +42,17 @@
         mode: "0644"
         content: "Lab file share seed object.\n"
 
+    # The image runs init scripts as its postgres user (uid 999 in the
+    # Debian-based postgres image), so it must be able to read the file;
+    # 0640 keeps the role passwords in it unreadable to other host users.
+    # If the script cannot run, the container exits, restarts, and skips
+    # init on the now non-empty pgdata: the check at the end catches that.
     - name: Template database init (per-role users and grants)
       ansible.builtin.template:
         src: templates/init.sql.j2
         dest: "{{ workloads_install_dir }}/init.sql"
+        owner: "{{ postgres_container_uid }}"
+        group: "{{ postgres_container_uid }}"
         mode: "0640"
 
     - name: Template compose file
@@ -77,4 +84,17 @@
       retries: 6
       delay: 5
       until: pg.rc == 0
+      changed_when: false
+
+    # pg_isready alone passes even when init.sql never ran (see above).
+    - name: Verify init.sql ran (roles exist, CONNECT matches the access model)
+      ansible.builtin.command:
+        cmd: >-
+          docker exec workloads-postgres-1 psql -U postgres -d {{ db_name }} -tAc
+          "SELECT rolname || '|' || has_database_privilege(rolname, '{{ db_name }}', 'CONNECT')
+           FROM pg_roles WHERE rolname LIKE 'remote-%' ORDER BY rolname"
+      register: pg_roles
+      retries: 6
+      delay: 5
+      until: pg_roles.stdout_lines == db_expected_connect
       changed_when: false

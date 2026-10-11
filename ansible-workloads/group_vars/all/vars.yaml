@@ -19,5 +19,16 @@ db_role_passwords:
   remote-analyst: "{{ vault_db_role_remote_analyst_password }}"
   remote-contractor: "{{ vault_db_role_remote_contractor_password }}"
 
+# CONNECT per role after init.sql ("role|bool" as text), sorted by role name.
+# Contractor has none: the Phase 1 network reaches postgres, the DB refuses.
+db_expected_connect:
+  - "remote-admin|true"
+  - "remote-analyst|true"
+  - "remote-contractor|false"
+  - "remote-developer|true"
+
+# uid of the postgres user inside postgres_image (Debian-based image: 999).
+postgres_container_uid: 999
+
 samba_share_user: labfiles
 samba_share_password: "{{ vault_samba_share_password }}"
