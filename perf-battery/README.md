@@ -5,7 +5,8 @@ samples per rep) through the access path under test, 5 repetitions,
 one CSV row per measurement so dispersion is computable.
 
 ```bash
-# on the target (tpi2-3 or AWS app): iperf3 -s
+# target: tpi2-3 runs lab-iperf3.service (deployed by ansible-workloads, :5201).
+# The AWS app has no internet route, so the AWS path is HTTP latency only.
 # on the emulated remote worker, through the path under test:
 ./run_perf.py --phase phase-1 --path vpn \
     --iperf-server 10.0.0.73 --http-url http://10.0.0.73:8080/

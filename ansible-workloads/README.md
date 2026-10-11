@@ -8,6 +8,7 @@ The resources every remote-access architecture must protect:
 | nginx intranet | 8080 | `intranet-web` | static internal app |
 | Samba share | 445 | `file-service` | single credentialed share |
 | socat echo | 8023 | `legacy-service` | deliberately unauthenticated cleartext |
+| iperf3 server | 5201 | — (perf-battery target) | `lab-iperf3.service`; not part of the access model |
 
 ```bash
 # vault all CHANGE-ME values first

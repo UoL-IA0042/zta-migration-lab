@@ -68,6 +68,41 @@
       register: up
       changed_when: "'Started' in up.stderr or 'Created' in up.stderr"
 
+    # iperf3 server: the perf-battery throughput target (not an access-matrix
+    # resource). Own unit name so it never clashes with a packaged
+    # iperf3.service; DynamicUser so it runs unprivileged.
+    - name: Install iperf3
+      ansible.builtin.apt:
+        name: iperf3
+        state: present
+      environment:
+        DEBIAN_FRONTEND: noninteractive   # skip the package's "start daemon?" prompt
+
+    - name: iperf3 server unit
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/lab-iperf3.service
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=iperf3 server (perf-battery throughput target)
+          After=network-online.target
+          Wants=network-online.target
+
+          [Service]
+          ExecStart=/usr/bin/iperf3 --server --port {{ iperf3_port }}
+          DynamicUser=yes
+          Restart=always
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Enable and start the iperf3 server
+      ansible.builtin.systemd:
+        name: lab-iperf3.service
+        daemon_reload: true
+        enabled: true
+        state: started
+
     - name: Verify intranet web responds
       ansible.builtin.uri:
         url: "http://{{ ansible_host }}:8080/"
@@ -85,6 +120,14 @@
       delay: 5
       until: pg.rc == 0
       changed_when: false
+
+    - name: Verify the iperf3 server accepts connections (from the controller)
+      ansible.builtin.wait_for:
+        host: "{{ ansible_host }}"
+        port: "{{ iperf3_port }}"
+        timeout: 30
+      delegate_to: localhost
+      become: false
 
     # pg_isready alone passes even when init.sql never ran (see above).
     - name: Verify init.sql ran (roles exist, CONNECT matches the access model)

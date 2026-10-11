@@ -27,6 +27,9 @@ db_expected_connect:
   - "remote-contractor|false"
   - "remote-developer|true"
 
+# perf-battery throughput target (lab-iperf3.service)
+iperf3_port: 5201
+
 # uid of the postgres user inside postgres_image (Debian-based image: 999).
 postgres_container_uid: 999
 
