@@ -104,13 +104,16 @@ Install and add the network (once):
    required for external authentication (2.59 current at the time of
    writing). Journal the version (About).
 2. Remove or disconnect every Phase 1 OpenVPN profile (step 5).
-3. In Ziti Desktop Edge: `+` (add identity) -> **With URL ...** ->
-   `https://ctrl.<edge-ip-dashed>.sslip.io:1280`. If adding by URL fails,
-   add **With JWT ...** using the network JWT instead:
+3. Download the network JWT once (it carries the controller's CA, and
+   is reused for every role):
    ```bash
-   curl -sk "https://ctrl.<edge-ip-dashed>.sslip.io:1280/edge/client/v1/network-jwts" \
+   curl -sk "https://ctrl.${LAB_EDGE_IP//./-}.sslip.io:1280/edge/client/v1/network-jwts" \
      | jq -r '.data[0].token' > ~/Downloads/zta-lab-network.jwt
    ```
+   In Ziti Desktop Edge: `+` (add identity) -> **With JWT ...** -> that
+   file. (**With URL ...** with `https://ctrl.<edge-ip-dashed>.sslip.io:1280`
+   also works for the first add, but in 2.59 re-adding the same URL after
+   removing the identity fails with a TLS error; the JWT does not.)
 4. Connect (top of the window) and turn the identity on. Its status
    reads "Enrolled (Authentication Required)". In the identity details,
    the row labelled MFA ends with a small person-with-key button
@@ -133,8 +136,8 @@ Per role (matrix and perf runs are one role at a time):
    and confirm. (The account console at `/realms/lab/account` shows "an
    unexpected error occurred" in this realm; it is not needed.)
 2. In Ziti Desktop Edge, remove the identity (`-` under the identity
-   list, then confirm), add it again (**With URL ...**), and
-   authenticate as the next role.
+   list, then confirm), add it again (**With JWT ...**, the same network
+   JWT file), and authenticate as the next role.
 3. Before running anything, check:
    - the badge is green and the identity's service list is exactly the
      role's dial set (access model below; contractor sees only
