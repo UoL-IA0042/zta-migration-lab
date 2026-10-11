@@ -1,0 +1,9 @@
+run_id,timestamp_utc,phase,role,resource,operation,probe_type,expected,observed,result,latency_ms,detail
+e3fdca541888,2026-10-11T21:16:50+00:00,phase-2-openziti,remote-developer,intranet-web,read,http,allow,allow,PASS,619,HTTP 200
+e3fdca541888,2026-10-11T21:16:51+00:00,phase-2-openziti,remote-developer,file-service,connect,tcp,allow,allow,PASS,417,connected
+e3fdca541888,2026-10-11T21:16:52+00:00,phase-2-openziti,remote-developer,postgres,read,exec,allow,allow,PASS,1008,exit 0
+e3fdca541888,2026-10-11T21:16:53+00:00,phase-2-openziti,remote-developer,postgres,write,exec,allow,allow,PASS,745,exit 0
+e3fdca541888,2026-10-11T21:16:53+00:00,phase-2-openziti,remote-developer,legacy-service,connect,tcp,deny,deny,PASS,3,connection refused
+e3fdca541888,2026-10-11T21:16:53+00:00,phase-2-openziti,remote-developer,aws-s3-data,read,exec,allow,allow,PASS,668,exit 0
+e3fdca541888,2026-10-11T21:16:54+00:00,phase-2-openziti,remote-developer,aws-s3-data,write,exec,deny,deny,PASS,583,"exit 254: aws: [ERROR]: An error occurred (AccessDenied) when calling the PutObject operation: User: arn:aws:iam::<account-id>:user/remote-developer is not authorized to perform: s3:PutObject on resource: ""arn:"
+e3fdca541888,2026-10-11T21:16:54+00:00,phase-2-openziti,remote-developer,aws-app,read,http,allow,allow,PASS,524,HTTP 200

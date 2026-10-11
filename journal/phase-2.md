@@ -252,3 +252,54 @@ ok: [tpi2-4] => {
 Removing the port-forward for UDP/1194.
 Removing the Phase 1 OpenVPN client profiles.
 Re-ran the `ansible-openziti` playbook and confirmed there were no changes.
+
+## 2026-10-11 13:45-14:45 | phase-2 | openziti | testing
+Ziti Desktop Edge version = 2.59
+
+`remote-admin` run of `test-matrix` was successful.
+
+
+`remote-admin` run of `perf-battery`
+Pre-checks passed
+Ping test and CSV file name for lab performance testing
+```
+$ ping -c 30 1.1.1.1 | tail -1
+round-trip min/avg/max/stddev = 31.300/46.455/136.150/24.733 ms
+
+phase-2-openziti_openziti_20261011T205853Z_4c481c1e0822.csv
+```
+
+Ping test and CSV file name for AWS performance testing
+```
+$ ping -c 30 1.1.1.1 | tail -1
+round-trip min/avg/max/stddev = 31.554/59.466/108.630/23.473 ms
+
+phase-2-openziti_openziti-aws_20261011T210641Z_667c2e3e2855.csv
+```
+
+`remote-developer` run of `test-matrix` was successful
+CSV results file: phase-2-openziti_remote-developer_20261011T211654Z_e3fdca541888.csv
+
+
+`remote-analyst` run of `test-matrix` was successful
+CSV results file: phase-2-openziti_remote-analyst_20261011T212248Z_695f6f812590.csv
+
+`remote-contractor` run of `test-matrix` was successful
+CSV results file: phase-2-openziti_remote-contractor_20261011T212555Z_327a94be666e.csv
+
+Some observations:
+* On-prem latency is about 115 ms higher, but much steadier. The OpenZiti p50 was 258–262 ms across reps, against 129–1135 ms for the VPN, and the SYN-retransmit peaks are gone. Two likely contributors, consistent with the design but not yet tested: the route now goes through AWS, and curl opens a new connection per sample, so each sample includes setting up a new path through the overlay.
+* The AWS path is about even (257 vs 265 ms). OpenZiti reaches aws-app directly from the public router, not through home and the site-to-site tunnel.
+* Upload is capped at about 2.2 Mbps (2.16–2.26 in every rep), against about 7.6 on the VPN. A spread that tight looks like a fixed bottleneck, not hotspot noise. If you have ten minutes, iperf3 -c 10.0.0.73 -P 4 (4 streams) would show whether it’s a per-stream limit. Otherwise, list it as a limitation to investigate.
+
+Aggregate results:
+| phase | role | pass | fail | error | rate |
+---|---|---|---|---|---|
+| phase-1 | remote-admin | 8 | 0 | 0 | 100.0% |
+| phase-1 | remote-analyst | 8 | 0 | 0 | 100.0% |
+| phase-1 | remote-contractor | 8 | 0 | 0 | 100.0% |
+| phase-1 | remote-developer | 8 | 0 | 0 | 100.0% |
+| phase-2-openziti | remote-admin | 8 | 0 | 0 | 100.0% |
+| phase-2-openziti | remote-analyst | 8 | 0 | 0 | 100.0% |
+| phase-2-openziti | remote-contractor | 8 | 0 | 0 | 100.0% |
+| phase-2-openziti | remote-developer | 8 | 0 | 0 | 100.0% |

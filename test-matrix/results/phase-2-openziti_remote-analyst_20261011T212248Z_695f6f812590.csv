@@ -1,0 +1,9 @@
+run_id,timestamp_utc,phase,role,resource,operation,probe_type,expected,observed,result,latency_ms,detail
+695f6f812590,2026-10-11T21:22:44+00:00,phase-2-openziti,remote-analyst,intranet-web,read,http,allow,allow,PASS,572,HTTP 200
+695f6f812590,2026-10-11T21:22:45+00:00,phase-2-openziti,remote-analyst,file-service,connect,tcp,allow,allow,PASS,386,connected
+695f6f812590,2026-10-11T21:22:46+00:00,phase-2-openziti,remote-analyst,postgres,read,exec,allow,allow,PASS,1013,exit 0
+695f6f812590,2026-10-11T21:22:46+00:00,phase-2-openziti,remote-analyst,postgres,write,exec,deny,deny,PASS,730,exit 1: ERROR:  permission denied for table probe_writes
+695f6f812590,2026-10-11T21:22:46+00:00,phase-2-openziti,remote-analyst,legacy-service,connect,tcp,deny,deny,PASS,3,connection refused
+695f6f812590,2026-10-11T21:22:47+00:00,phase-2-openziti,remote-analyst,aws-s3-data,read,exec,allow,allow,PASS,691,exit 0
+695f6f812590,2026-10-11T21:22:48+00:00,phase-2-openziti,remote-analyst,aws-s3-data,write,exec,deny,deny,PASS,630,"exit 254: aws: [ERROR]: An error occurred (AccessDenied) when calling the PutObject operation: User: arn:aws:iam::<account-id>:user/remote-analyst is not authorized to perform: s3:PutObject on resource: ""arn:aw"
+695f6f812590,2026-10-11T21:22:48+00:00,phase-2-openziti,remote-analyst,aws-app,read,http,allow,allow,PASS,576,HTTP 200

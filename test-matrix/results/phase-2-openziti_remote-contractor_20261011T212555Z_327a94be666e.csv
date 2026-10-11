@@ -1,0 +1,9 @@
+run_id,timestamp_utc,phase,role,resource,operation,probe_type,expected,observed,result,latency_ms,detail
+327a94be666e,2026-10-11T21:25:44+00:00,phase-2-openziti,remote-contractor,intranet-web,read,http,allow,allow,PASS,591,HTTP 200
+327a94be666e,2026-10-11T21:25:44+00:00,phase-2-openziti,remote-contractor,file-service,connect,tcp,deny,deny,PASS,4,connection refused
+327a94be666e,2026-10-11T21:25:44+00:00,phase-2-openziti,remote-contractor,postgres,read,exec,deny,deny,PASS,44,"exit 2: psql: error: connection to server at ""10.0.0.73"", port 5432 failed: Connection refused 	Is the server running on that host and accepting TCP/IP connections?"
+327a94be666e,2026-10-11T21:25:44+00:00,phase-2-openziti,remote-contractor,postgres,write,exec,deny,deny,PASS,23,"exit 2: psql: error: connection to server at ""10.0.0.73"", port 5432 failed: Connection refused 	Is the server running on that host and accepting TCP/IP connections?"
+327a94be666e,2026-10-11T21:25:44+00:00,phase-2-openziti,remote-contractor,legacy-service,connect,tcp,deny,deny,PASS,1,connection refused
+327a94be666e,2026-10-11T21:25:45+00:00,phase-2-openziti,remote-contractor,aws-s3-data,read,exec,deny,deny,PASS,717,"exit 254: aws: [ERROR]: An error occurred (AccessDenied) when calling the GetObject operation: User: arn:aws:iam::<account-id>:user/remote-contractor is not authorized to perform: s3:GetObject on resource: ""arn"
+327a94be666e,2026-10-11T21:25:45+00:00,phase-2-openziti,remote-contractor,aws-s3-data,write,exec,deny,deny,PASS,555,"exit 254: aws: [ERROR]: An error occurred (AccessDenied) when calling the PutObject operation: User: arn:aws:iam::<account-id>:user/remote-contractor is not authorized to perform: s3:PutObject on resource: ""arn"
+327a94be666e,2026-10-11T21:25:55+00:00,phase-2-openziti,remote-contractor,aws-app,read,http,deny,deny,PASS,10003,connection failed: timed out

@@ -1,0 +1,9 @@
+run_id,timestamp_utc,phase,role,resource,operation,probe_type,expected,observed,result,latency_ms,detail
+ce86f45a1cad,2026-10-11T20:53:39+00:00,phase-2-openziti,remote-admin,intranet-web,read,http,allow,allow,PASS,365,HTTP 200
+ce86f45a1cad,2026-10-11T20:53:39+00:00,phase-2-openziti,remote-admin,file-service,connect,tcp,allow,allow,PASS,382,connected
+ce86f45a1cad,2026-10-11T20:53:40+00:00,phase-2-openziti,remote-admin,postgres,read,exec,allow,allow,PASS,1080,exit 0
+ce86f45a1cad,2026-10-11T20:53:41+00:00,phase-2-openziti,remote-admin,postgres,write,exec,allow,allow,PASS,735,exit 0
+ce86f45a1cad,2026-10-11T20:53:41+00:00,phase-2-openziti,remote-admin,legacy-service,connect,tcp,allow,allow,PASS,392,connected
+ce86f45a1cad,2026-10-11T20:53:42+00:00,phase-2-openziti,remote-admin,aws-s3-data,read,exec,allow,allow,PASS,926,exit 0
+ce86f45a1cad,2026-10-11T20:53:43+00:00,phase-2-openziti,remote-admin,aws-s3-data,write,exec,allow,allow,PASS,609,exit 0
+ce86f45a1cad,2026-10-11T20:53:43+00:00,phase-2-openziti,remote-admin,aws-app,read,http,allow,allow,PASS,801,HTTP 200
