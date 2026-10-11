@@ -1,0 +1,9 @@
+run_id,timestamp_utc,phase,role,resource,operation,probe_type,expected,observed,result,latency_ms,detail
+97878aea7178,2026-10-11T05:37:31+00:00,phase-1,remote-admin,intranet-web,read,http,allow,allow,PASS,153,HTTP 200
+97878aea7178,2026-10-11T05:37:31+00:00,phase-1,remote-admin,file-service,connect,tcp,allow,allow,PASS,56,connected
+97878aea7178,2026-10-11T05:37:31+00:00,phase-1,remote-admin,postgres,read,exec,allow,allow,PASS,441,exit 0
+97878aea7178,2026-10-11T05:37:32+00:00,phase-1,remote-admin,postgres,write,exec,allow,allow,PASS,416,exit 0
+97878aea7178,2026-10-11T05:37:32+00:00,phase-1,remote-admin,legacy-service,connect,tcp,allow,allow,PASS,51,connected
+97878aea7178,2026-10-11T05:37:33+00:00,phase-1,remote-admin,aws-s3-data,read,exec,allow,allow,PASS,799,exit 0
+97878aea7178,2026-10-11T05:37:33+00:00,phase-1,remote-admin,aws-s3-data,write,exec,allow,allow,PASS,530,exit 0
+97878aea7178,2026-10-11T05:37:33+00:00,phase-1,remote-admin,aws-app,read,http,allow,allow,PASS,238,HTTP 200

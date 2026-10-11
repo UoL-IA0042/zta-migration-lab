@@ -2510,7 +2510,7 @@ harness (see the coding entry below). The contractor run will be repeated after
 setting up the probe environment (psql on PATH, PGPASSWORD, AWS profiles per
 role, LAB_DATA_BUCKET).
 
-## 2026-10-11 22:00-22:15 | phase-1 | test-matrix | coding
+## 2026-10-11 22:00-22:45 | phase-1 | test-matrix | coding
 Hardened the access-matrix harness before recording Phase 1 results. `exec`
 probes now need a deny signature (`deny_pattern`): a nonzero exit counts as a
 deny only if its output shows the control refusing (`AccessDenied` for S3;
@@ -2524,3 +2524,124 @@ missing password errors instead of prompting. Added requirements.txt. PyYAML
 version installed: 6.0.3.
 
 There are two more results that were part of the setup. They should not be counted.
+
+Created the `results/excluded` for results that are to excluded from data analysis. There was a run for `remote-admin` that produced a probe-creedential error. It's now fixed.
+
+```
+phase        role                     pass   fail  error    rate
+phase-1      remote-admin                8      0      0  100.0%
+phase-1      remote-analyst              8      0      0  100.0%
+phase-1      remote-contractor           8      0      0  100.0%
+phase-1      remote-developer            8      0      0  100.0%
+```
+
+## 2026-10-11 22:45-22:50 | phase-1 | ansible-workloads | coding
+Added the perf-battery iperf3 server to the workloads deployment on tpi2-3.
+Until now it was started by hand outside version control and was lost on
+every reset. ansible-workloads now installs iperf3 non-interactively and
+runs it as `lab-iperf3.service` on port 5201 (variable `iperf3_port`). The
+service has its own unit name, runs unprivileged (DynamicUser), restarts on
+failure and is enabled at boot. A new final check confirms the port accepts
+connections from the controller. iperf3 is a measurement target only, not an
+access-matrix resource, and is listed that way in the workloads and
+perf-battery READMEs. The AWS path is measured for HTTP latency only, because
+the app subnet has no internet route and iperf3 cannot be installed there.
+
+## 2026-10-11 22:50-23:10 | phase-1 | node-reset | deployment
+Rolled iperf3 into tpi2-3's golden baseline without capturing test data.
+1. Full reset of tpi2-3 to the existing golden image. This removed the rows
+   and objects written by the Phase 1 access-matrix probes.
+2. Re-ran ansible-workloads. iperf3 was added; init.sql did not re-run, since
+   pgdata already existed, so grants were unchanged.
+3. Recaptured the golden image: to-recovery, capture-golden.sh, then
+   to-main and verify.
+New tpi2-3 golden sha256: <fill in>
+Capture time: <fill in>. Provenance line: <fill in>.
+From now on, a reset of tpi2-3 restores the workloads including iperf3.
+
+## 2026-10-11 23:10-23:MM | phase-1 | perf-battery | planning
+Decided to run the performance battery from the Mac on a phone hotspot rather
+than a dedicated cloud worker (a small EC2 instance in a separate VPC). The
+hotspot has been reliable in practice, and setup cost and time favour it.
+This is a threat to validity: a cellular access network adds latency and
+throughput variance that is not caused by the access path under test.
+Mitigations:
+- record a control measurement (`ping -c 30 1.1.1.1`) before each path's run
+  and journal it with the run ID, so anomalous runs can be flagged
+- keep the location, device and time of day consistent, and note carrier and
+  signal
+- use repeated reps (5 per path) and report mean and standard deviation
+- treat the cross-phase comparisons (vpn vs openziti vs netbird, all on the
+  same hotspot) as the primary result; the home-LAN baseline differs in more
+  than the access path
+
+Ran the following commands:
+```
+# merge as usual (re-sign, fast-forward, push, delete branch), then:
+cd node-reset
+ansible-playbook -i inventory.yaml reset.yaml -l tpi2-3                        # back to the clean golden state
+
+cd ../ansible-workloads
+ansible-playbook -i inventory.yaml --vault-password-file ../.vault-pass site.yaml   # adds iperf3; existing grants unchanged
+
+cd ../node-reset                                                               # recapture so resets keep iperf3
+ansible-playbook -i inventory.yaml reset.yaml -l tpi2-3 --tags to-recovery
+./capture-golden.sh tpi2-3 10.0.0.73
+ansible-playbook -i inventory.yaml reset.yaml -l tpi2-3 --tags to-main,verify
+```
+
+The new golden checksum is `0008e8f5e4e9a838503b2603da2e30a4300942ec308f81acad6f16584b356533  rootfs.img.zst`, which now includes `iperf3` as part of the golden image.
+
+```
+$ route -n get 10.0.0.73 | grep interface
+  interface: en0
+$ iperf3 -c 10.0.0.73 -t 2
+Connecting to host 10.0.0.73, port 5201
+[  4] local 10.0.0.143 port 49787 connected to 10.0.0.73 port 5201
+[ ID] Interval           Transfer     Bitrate         Retr  Cwnd
+[  4]   0.00-1.01   sec  12.0 MBytes   100 Mbits/sec  1231    260 KBytes       
+[  4]   1.01-2.00   sec  11.1 MBytes  93.5 Mbits/sec   85    205 KBytes       
+- - - - - - - - - - - - - - - - - - - - - - - - -
+[ ID] Interval           Transfer     Bitrate         Retr
+[  4]   0.00-2.00   sec  23.1 MBytes  96.8 Mbits/sec  1316            sender
+[  4]   0.00-1.85   sec  22.9 MBytes   103 Mbits/sec                  receiver
+
+iperf Done.
+```
+
+Control running over VPN
+```
+$ ping -c 30 1.1.1.1 | tail -1
+round-trip min/avg/max/stddev = 29.644/36.930/60.168/6.520 ms
+$ ./run_perf.py --phase phase-1 --path vpn --iperf-server 10.0.0.73 --http-url http://10.0.0.73:8080/
+rep 1 throughput_up: 7.57 Mbps 
+rep 1 throughput_down: 23.69 Mbps 
+rep 1 http latency p50=146.1ms n=50
+rep 2 throughput_up: 7.35 Mbps 
+rep 2 throughput_down: 33.54 Mbps 
+rep 2 http latency p50=1135.1ms n=50
+rep 3 throughput_up: 0.29 Mbps 
+rep 3 throughput_down: 14.68 Mbps 
+rep 3 http latency p50=136.9ms n=50
+rep 4 throughput_up: 9.95 Mbps 
+rep 4 throughput_down: 29.04 Mbps 
+rep 4 http latency p50=128.5ms n=50
+rep 5 throughput_up: 7.91 Mbps 
+rep 5 throughput_down: 29.04 Mbps 
+rep 5 http latency p50=176.5ms n=50
+
+25 rows -> results/phase-1_vpn_20261011T061620Z_8c4335212d4d.csv
+```
+
+AWS app running over VPN
+```
+$ ./run_perf.py --phase phase-1 --path vpn-aws --http-url http://10.100.10.10:8080/
+rep 1 http latency p50=231.2ms n=50
+rep 2 http latency p50=285.3ms n=50
+rep 3 http latency p50=280.2ms n=50
+rep 4 http latency p50=264.7ms n=50
+rep 5 http latency p50=216.0ms n=50
+
+15 rows -> results/phase-1_vpn-aws_20261011T061852Z_89ea2adc52f3.csv
+```
+
