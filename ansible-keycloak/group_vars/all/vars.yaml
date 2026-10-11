@@ -70,8 +70,12 @@ oidc_clients:
     audience_mapper: true
     redirect_uris:
       - "http://localhost:20314/auth/callback"   # Ziti tunnelers (OpenZiti OIDC reference)
+  # NetBird's embedded IdP (Dex) uses Keycloak as an upstream OIDC
+  # connector: confidential client, redirect to the connector callback on
+  # the edge host, realm roles also emitted as "groups" (the connector's
+  # groups claim, used for NetBird's JWT group sync). The secret is shared
+  # with ansible-netbird, which reads it from this vault.
   - client_id: netbird
     secret: "{{ vault_netbird_secret }}"
-    redirect_uris:
-      - "https://netbird.lab.example.com/*"
-      - "http://localhost:53000/*"      # NetBird client loopback flow
+    groups_mapper: true
+    redirect_uris: "{{ ['https://netbird.' ~ (lab_edge_ip | replace('.', '-')) ~ '.sslip.io/oauth2/callback'] if lab_edge_ip else [] }}"

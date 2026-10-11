@@ -46,7 +46,8 @@ IdP integration.
 
 ## Phase 2: public issuer
 
-With the edge host up (`terraform-aws`, `enable_openziti=true`), Keycloak is
+With the edge host up (`terraform-aws`, `enable_openziti=true` or
+`enable_netbird=true`), Keycloak is
 published at `https://idp.<edge-ip-dashed>.sslip.io` through the edge
 host's reverse proxy and the site-to-site tunnel, and that URL becomes the
 issuer (`KC_HOSTNAME`, with `KC_PROXY_HEADERS=xforwarded`). The realm
@@ -64,6 +65,15 @@ ansible-playbook -i inventory.yaml --vault-password-file ../.vault-pass site.yam
 issuer is exactly the public URL. Without `LAB_EDGE_IP` the issuer stays
 the phase-0 `http://10.0.0.72:8080`. The golden image keeps the phase-0
 Keycloak; this redeploy is part of the Phase 2 migration.
+
+NetBird (docs/phase-2-netbird.md): the `netbird` client is confidential
+(secret `vault_netbird_secret`, shared with ansible-netbird), redirects to
+the embedded IdP's connector callback
+`https://netbird.<edge-ip-dashed>.sslip.io/oauth2/callback` (no redirect
+URIs without `LAB_EDGE_IP`), and emits the realm roles as `groups` as well
+as `roles`, for NetBird's JWT group sync. All clients' default scopes
+include `basic`, which carries `sub` since Keycloak 25. Same redeploy
+command as above.
 
 ## Verified
 

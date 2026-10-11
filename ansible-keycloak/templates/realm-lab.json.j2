@@ -21,6 +21,9 @@
       "enabled": true,
       "emailVerified": true,
       "email": "{{ user.username }}@lab.example.com",
+{# names avoid the "update account information" step at first login #}
+      "firstName": "Remote",
+      "lastName": "{{ user.username | regex_replace('^remote-', '') | capitalize }}",
       "credentials": [
         {
           "type": "password",
@@ -49,7 +52,8 @@
 {% endif %}
       "redirectUris": {{ client.redirect_uris | to_json }},
       "webOrigins": ["+"],
-      "defaultClientScopes": ["openid", "profile", "email", "roles"],
+{# "basic" carries sub and auth_time (Keycloak 25+); "openid" is the protocol scope, not a client scope. #}
+      "defaultClientScopes": ["basic", "profile", "email", "roles"],
       "protocolMappers": [
         {
           "name": "realm-roles",
@@ -63,7 +67,20 @@
             "access.token.claim": "true",
             "userinfo.token.claim": "true"
           }
-        }{% if client.audience_mapper | default(false) %},
+        }{% if client.groups_mapper | default(false) %},
+        {
+          "name": "realm-roles-as-groups",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "config": {
+            "claim.name": "groups",
+            "jsonType.label": "String",
+            "multivalued": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }{% endif %}{% if client.audience_mapper | default(false) %},
         {
           "name": "audience-{{ client.client_id }}",
           "protocol": "openid-connect",
