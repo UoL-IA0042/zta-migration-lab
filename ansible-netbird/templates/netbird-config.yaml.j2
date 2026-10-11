@@ -1,0 +1,34 @@
+# Managed by ansible-netbird/site.yaml. NetBird combined server behind the
+# edge host's Caddy (NetBird's external-proxy layout, getting-started.sh
+# v{{ netbird_version }}), on loopback with host networking.
+server:
+  listenAddress: "127.0.0.1:{{ netbird_server_port }}"
+  exposedAddress: "{{ netbird_url }}:443"
+  stunPorts:
+    - 3478
+  metricsPort: 9090
+  healthcheckAddress: "127.0.0.1:9000"
+  logLevel: "info"
+  logFile: "console"
+
+  authSecret: "{{ netbird_secrets.relay }}"
+  dataDir: "/var/lib/netbird"
+
+  auth:
+    issuer: "{{ netbird_url }}/oauth2"
+    signKeyRefreshEnabled: true
+    sessionCookieEncryptionKey: "{{ netbird_secrets.cookie_key }}"
+    dashboardRedirectURIs:
+      - "{{ netbird_url }}/nb-auth"
+      - "{{ netbird_url }}/nb-silent-auth"
+    cliRedirectURIs:
+      - "http://localhost:53000/"
+
+  # Caddy connects from loopback; it sets X-Forwarded-For
+  reverseProxy:
+    trustedHTTPProxies:
+      - "127.0.0.1/32"
+
+  store:
+    engine: "sqlite"
+    encryptionKey: "{{ netbird_secrets.store_key }}"

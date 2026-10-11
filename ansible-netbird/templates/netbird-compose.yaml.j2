@@ -1,0 +1,23 @@
+# Managed by ansible-netbird/site.yaml. Caddy (/opt/edge) terminates TLS and
+# routes to these loopback ports; STUN 3478/udp is published directly.
+services:
+  dashboard:
+    image: {{ netbird_dashboard_image }}
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:{{ netbird_dashboard_port }}:80"
+    env_file:
+      - ./dashboard.env
+
+  netbird-server:
+    image: {{ netbird_server_image }}
+    restart: unless-stopped
+    network_mode: host                 # loopback listener and STUN on the host
+    environment:
+      # POST /api/setup may return the first admin's API token; only
+      # effective while no account exists.
+      NB_SETUP_PAT_ENABLED: "true"
+    volumes:
+      - ./data:/var/lib/netbird
+      - ./config.yaml:/etc/netbird/config.yaml:ro
+    command: ["--config", "/etc/netbird/config.yaml"]

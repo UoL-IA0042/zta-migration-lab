@@ -14,6 +14,12 @@ all:
       hosts:
         tpi2-4:
           ansible_host: 10.0.0.251
+    # NetBird routing peers (site.yaml): tpi2-4 for the lab network, the
+    # edge host for the AWS network
+    netbird_routing_peers:
+      hosts:
+        tpi2-4:
+        nb-edge:
   vars:
     ansible_user: ubuntu
     ansible_python_interpreter: /usr/bin/python3

@@ -1,0 +1,296 @@
+# Phase 2 NetBird step 4 (docs/phase-2-netbird.md): management server and
+# dashboard on the edge host behind Caddy, bootstrap through the management
+# API (files/netbird-admin.py), routing peers on tpi2-4 and the edge host,
+# then the access model (access-model.yaml, policies for the role groups
+# that exist so far).
+#
+# Run after idp-path.yaml has verified the issuer:
+#   export LAB_EDGE_IP=$(terraform -chdir=../terraform-aws output -raw edge_host_public_ip)
+#   ansible-playbook -i inventory.yaml --vault-password-file ../.vault-pass site.yaml
+# After a routing peer's node was reset: -e netbird_reenroll=tpi2-4
+---
+- name: NetBird server and bootstrap (edge host)
+  hosts: edge_host
+  become: true
+  gather_facts: false
+  vars_files:
+    - ../ansible-keycloak/group_vars/all/vault.yaml   # vault_netbird_secret (shared client secret)
+
+  pre_tasks:
+    - name: Require the edge host address and the vaulted secrets
+      ansible.builtin.assert:
+        that:
+          - lab_edge_ip | length > 0
+          - vault_netbird_owner_password is defined
+          - vault_netbird_owner_password | length >= 12
+          - vault_netbird_secret is defined
+          - vault_netbird_secret | length >= 16
+        fail_msg: >-
+          Set LAB_EDGE_IP, create group_vars/all/vault.yaml with
+          vault_netbird_owner_password (README), and check ansible-keycloak's
+          vault_netbird_secret.
+        quiet: true
+
+    - name: Gather facts
+      ansible.builtin.setup:
+
+  tasks:
+    - name: Directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0700"
+      loop:
+        - "{{ netbird_install_dir }}"
+        - "{{ netbird_install_dir }}/data"
+        - "{{ netbird_install_dir }}/enroll"
+
+    # Server-local secrets: generated once, never leave the host.
+    - name: Generate server secrets (first run only)
+      ansible.builtin.shell:
+        cmd: |
+          umask 077
+          python3 -c 'import base64, json, secrets
+          print(json.dumps({
+            "relay": secrets.token_urlsafe(32),
+            "store_key": base64.b64encode(secrets.token_bytes(32)).decode(),
+            "cookie_key": base64.b64encode(secrets.token_bytes(32)).decode()}))' > secrets.json
+        chdir: "{{ netbird_install_dir }}"
+        creates: "{{ netbird_install_dir }}/secrets.json"
+
+    - name: Read server secrets
+      ansible.builtin.slurp:
+        src: "{{ netbird_install_dir }}/secrets.json"
+      register: secrets_raw
+      no_log: true
+
+    - name: Server configuration
+      ansible.builtin.template:
+        src: templates/netbird-config.yaml.j2
+        dest: "{{ netbird_install_dir }}/config.yaml"
+        mode: "0600"
+      vars:
+        netbird_secrets: "{{ secrets_raw.content | b64decode | from_json }}"
+      register: server_config
+      no_log: true
+
+    - name: Dashboard environment and compose file
+      ansible.builtin.template:
+        src: "templates/{{ item.src }}"
+        dest: "{{ netbird_install_dir }}/{{ item.dest }}"
+        mode: "0600"
+      loop:
+        - {src: dashboard.env.j2, dest: dashboard.env}
+        - {src: netbird-compose.yaml.j2, dest: docker-compose.yaml}
+      register: compose_files
+
+    - name: Start (or recreate on change) the server and dashboard
+      ansible.builtin.command:
+        cmd: >-
+          docker compose up -d
+          {{ '--force-recreate' if (server_config.changed or compose_files.changed) else '' }}
+        chdir: "{{ netbird_install_dir }}"
+      register: up
+      changed_when: up.stderr is search('Creat|Recreat|Start')
+
+    - name: Wait for the management API
+      ansible.builtin.uri:
+        url: "{{ netbird_api }}/api/instance"
+      register: instance
+      until: instance.status == 200
+      retries: 30
+      delay: 5
+
+    - name: Admin script and its input
+      ansible.builtin.copy:
+        dest: "{{ netbird_install_dir }}/{{ item.dest }}"
+        mode: "0700"
+        src: "{{ item.src | default(omit) }}"
+        content: "{{ item.content | default(omit) }}"
+      loop:
+        - {src: files/netbird-admin.py, dest: netbird-admin.py}
+        - dest: bootstrap.json
+          content: "{{ netbird_bootstrap | to_nice_json }}\n"
+      vars:
+        netbird_bootstrap:
+          api: "{{ netbird_api }}"
+          token_file: "{{ netbird_install_dir }}/admin.token"
+          token_days: "{{ netbird_token_days }}"
+          owner_email: "{{ netbird_owner_email }}"
+          owner_name: "{{ netbird_owner_name }}"
+          idp:
+            name: keycloak
+            issuer: "{{ keycloak_issuer }}"
+            client_id: "{{ netbird_keycloak_client_id }}"
+          settings: "{{ netbird_settings }}"
+          settings_extra: "{{ netbird_settings_extra }}"
+          networks: "{{ netbird_networks }}"
+          key_dir: "{{ netbird_install_dir }}/enroll"
+          reenroll: "{{ netbird_reenroll_hosts.split(',') | map('trim') | select | list }}"
+
+    - name: Bootstrap (owner, IdP connector, settings, networks, setup keys)
+      ansible.builtin.command:
+        cmd: python3 netbird-admin.py bootstrap bootstrap.json
+        chdir: "{{ netbird_install_dir }}"
+      environment:
+        NB_OWNER_PASSWORD: "{{ netbird_owner_password }}"
+        NB_KEYCLOAK_SECRET: "{{ vault_netbird_secret }}"
+      register: bootstrap
+      changed_when: bootstrap.stdout is search('^(created|updated|deleted) ', multiline=True)
+
+    - name: Show bootstrap changes (journal these)
+      ansible.builtin.debug:
+        var: bootstrap.stdout_lines
+
+    - name: Look for setup keys of routing peers not yet enrolled
+      ansible.builtin.stat:
+        path: "{{ netbird_install_dir }}/enroll/{{ item.peer_hostname }}.key"
+      loop: "{{ netbird_networks }}"
+      register: enroll_keys
+
+    - name: Read setup keys
+      ansible.builtin.slurp:
+        src: "{{ item.stat.path }}"
+      loop: "{{ enroll_keys.results | selectattr('stat.exists') | list }}"
+      register: enroll_key_content
+      no_log: true
+
+    - name: Hand each routing peer its setup key
+      ansible.builtin.set_fact:
+        netbird_setup_keys: >-
+          {{ dict(enroll_key_content.results
+                  | map(attribute='item.item.peer_hostname')
+                  | zip(enroll_key_content.results | map(attribute='content') | map('b64decode'))) }}
+      no_log: true
+
+    - name: Record image digests (journal these)
+      ansible.builtin.command:
+        cmd: >-
+          docker image inspect --format '{{ "{{" }}index .RepoDigests 0{{ "}}" }}'
+          {{ netbird_server_image }} {{ netbird_dashboard_image }}
+      register: digests
+      changed_when: false
+
+    - name: Show image digests
+      ansible.builtin.debug:
+        var: digests.stdout_lines
+
+- name: NetBird routing peers (tpi2-4, edge host)
+  hosts: netbird_routing_peers
+  become: true
+  vars:
+    edge: "{{ groups['edge_host'][0] }}"
+    setup_key: "{{ hostvars[edge].netbird_setup_keys[inventory_hostname] | default('') }}"
+
+  tasks:
+    - name: NetBird package signing key
+      ansible.builtin.get_url:
+        url: https://pkgs.netbird.io/debian/public.key
+        dest: /usr/share/keyrings/netbird-archive-keyring.asc
+        mode: "0644"
+
+    - name: NetBird package repository
+      ansible.builtin.copy:
+        dest: /etc/apt/sources.list.d/netbird.list
+        mode: "0644"
+        content: "deb [signed-by=/usr/share/keyrings/netbird-archive-keyring.asc] https://pkgs.netbird.io/debian stable main\n"
+
+    - name: Install the NetBird client (pinned)
+      ansible.builtin.apt:
+        name: "netbird={{ netbird_version }}"
+        update_cache: true
+        state: present
+
+    - name: Install the client service
+      ansible.builtin.command: netbird service install
+      args:
+        creates: /etc/systemd/system/netbird.service
+
+    - name: Enable and start the client service
+      ansible.builtin.systemd:
+        name: netbird
+        enabled: true
+        state: started
+
+    # Only peers without an identity get a key (see the bootstrap). Routing
+    # peers keep their own DNS and routes: --disable-dns, --disable-client-routes.
+    - name: Enroll with the setup key
+      when: setup_key | length > 0
+      block:
+        - name: Setup key file
+          ansible.builtin.copy:
+            content: "{{ setup_key }}"
+            dest: /root/netbird-setup.key
+            mode: "0600"
+          no_log: true
+
+        - name: netbird up
+          ansible.builtin.command: >-
+            netbird up --management-url {{ netbird_url }}
+            --setup-key-file /root/netbird-setup.key
+            --hostname {{ inventory_hostname }}
+            --disable-dns --disable-client-routes
+          changed_when: true
+
+      always:
+        - name: Remove the setup key file
+          ansible.builtin.file:
+            path: /root/netbird-setup.key
+            state: absent
+
+    - name: Client connected to management
+      ansible.builtin.command: netbird status --json
+      register: nb_status
+      changed_when: false
+      until: >-
+        nb_status.rc == 0 and
+        (nb_status.stdout | from_json).management.connected | default(false)
+      retries: 12
+      delay: 5
+
+    - name: Record the client version (journal it)
+      ansible.builtin.command: netbird version
+      register: nb_version
+      changed_when: false
+
+    - name: Show the client version
+      ansible.builtin.debug:
+        var: nb_version.stdout
+
+- name: Check routing peers and networks (edge host)
+  hosts: edge_host
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Read the admin token
+      ansible.builtin.slurp:
+        src: "{{ netbird_install_dir }}/admin.token"
+      register: token_raw
+      no_log: true
+
+    - name: Routing peers connected
+      ansible.builtin.uri:
+        url: "{{ netbird_api }}/api/peers"
+        headers:
+          Authorization: "Token {{ token_raw.content | b64decode | trim }}"
+      register: peers
+      vars:
+        connected: "{{ peers.json | default([]) | selectattr('connected') | map(attribute='hostname') | list }}"
+      until: netbird_networks | map(attribute='peer_hostname') | difference(connected) | length == 0
+      retries: 24
+      delay: 5
+
+    - name: Remove leftover setup keys
+      ansible.builtin.file:
+        path: "{{ netbird_install_dir }}/enroll/{{ item.peer_hostname }}.key"
+        state: absent
+      loop: "{{ netbird_networks }}"
+
+    - name: Peers (journal this)
+      ansible.builtin.debug:
+        msg: >-
+          {{ peers.json | map(attribute='hostname') | zip(peers.json | map(attribute='connected'),
+             peers.json | map(attribute='ip'), peers.json | map(attribute='version')) | list }}
+
+- name: Access model
+  ansible.builtin.import_playbook: access-model.yaml

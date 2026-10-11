@@ -22,3 +22,95 @@ netbird_dashboard_port: 8080
 # LAB_EDGE_IP set). NetBird's embedded IdP uses it as an upstream OIDC
 # provider; it must match the discovery document exactly.
 keycloak_issuer: "https://{{ idp_public_host }}/realms/lab"
+
+# --- NetBird server (step 4) ------------------------------------------------
+# VERIFY at deploy; journal the image digests and the client package version.
+netbird_version: "0.80.0"                # server image and client package
+netbird_dashboard_version: "v2.94.0"
+netbird_server_image: "netbirdio/netbird-server:{{ netbird_version }}"
+netbird_dashboard_image: "netbirdio/dashboard:{{ netbird_dashboard_version }}"
+netbird_install_dir: /opt/netbird
+netbird_url: "https://{{ netbird_public_host }}"
+netbird_api: "http://127.0.0.1:{{ netbird_server_port }}"   # admin script, on the edge host
+
+# Bootstrap admin: a local user of the embedded IdP, used for the API token
+# and the dashboard. Remote workers log in through Keycloak instead.
+netbird_owner_email: nb-admin@lab.example.com
+netbird_owner_name: NetBird admin
+netbird_owner_password: "{{ vault_netbird_owner_password }}"
+netbird_token_days: 365                  # admin API token lifetime (setup-time PAT)
+
+# Keycloak as the embedded IdP's OIDC connector. The client secret is
+# ansible-keycloak's vault_netbird_secret (that vault is loaded by the plays).
+netbird_keycloak_client_id: netbird
+
+# Account settings: JWT group sync from Keycloak's "groups" claim (realm
+# roles), groups propagate to users' peers, no manual user approval.
+netbird_settings:
+  jwt_groups_enabled: true
+  jwt_groups_claim_name: groups
+  groups_propagation_enabled: true
+  regular_users_view_blocked: true
+netbird_settings_extra:
+  user_approval_required: false
+
+# Networks: one resource each, reached through a routing peer. The router
+# group holds the routing peer (it joins through its setup key).
+netbird_networks:
+  - name: lab
+    description: Lab workloads on tpi2-3
+    resource: lab-workloads
+    address: 10.0.0.73/32
+    router_group: routers-lab
+    peer_hostname: tpi2-4
+  - name: aws
+    description: AWS application
+    resource: aws-app
+    address: 10.100.10.10/32
+    router_group: routers-aws
+    peer_hostname: nb-edge
+
+# Routing peers to enroll again after their node was reset (their local
+# identity is gone): -e netbird_reenroll=tpi2-4 (comma-separated)
+netbird_reenroll_hosts: "{{ netbird_reenroll | default('') }}"
+
+# Roles = JWT groups (created by NetBird at each role's first login).
+lab_roles:
+  - remote-admin
+  - remote-developer
+  - remote-analyst
+  - remote-contractor
+
+# Access model (docs/phase-2-netbird.md): one policy per service, same
+# dial table as phase-2-openziti.
+netbird_services:
+  - name: intranet-web
+    resource: lab-workloads
+    host: 10.0.0.73
+    port: 8080
+    dial_roles: [remote-admin, remote-developer, remote-analyst, remote-contractor]
+  - name: file-service
+    resource: lab-workloads
+    host: 10.0.0.73
+    port: 445
+    dial_roles: [remote-admin, remote-developer, remote-analyst]
+  - name: postgres
+    resource: lab-workloads
+    host: 10.0.0.73
+    port: 5432
+    dial_roles: [remote-admin, remote-developer, remote-analyst]
+  - name: legacy-service
+    resource: lab-workloads
+    host: 10.0.0.73
+    port: 8023
+    dial_roles: [remote-admin]
+  - name: aws-app
+    resource: aws-app
+    host: 10.100.10.10
+    port: 8080
+    dial_roles: [remote-admin, remote-developer, remote-analyst]
+  - name: perf-iperf3                    # perf battery only, not in the matrix
+    resource: lab-workloads
+    host: 10.0.0.73
+    port: 5201
+    dial_roles: [remote-admin]

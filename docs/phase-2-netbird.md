@@ -107,6 +107,10 @@ rule-to-policy artifact (RQ2).
 5. Decommission remote-access OpenVPN
    (`ansible-openvpn/decommission-remote-access.yaml`, unchanged) and the
    ISP 1194/udp forward.
+   Deviation found in implementation: JWT group sync only joins users to
+   groups it created itself (v0.80.0 `getJWTGroupsChanges`), so role
+   groups appear at each role's first login and policies are written by
+   `access-model.yaml`, re-run after each role's first login.
 6. Client: NetBird for macOS, management URL
    `https://netbird.<eip>.sslip.io`, SSO login per role; runbook with
    role switching and pre-run checks.

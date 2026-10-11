@@ -1,0 +1,48 @@
+# Phase 2 NetBird: one policy per service (files/netbird-admin.py
+# access-model). Sources are the role groups NetBird creates from the
+# Keycloak "groups" claim at each role's first login, so re-run this after
+# a role logs in for the first time:
+#   ansible-playbook -i inventory.yaml access-model.yaml
+# The resulting policy set is exported to policies-export.json (commit it:
+# the rule-to-policy artifact for this product).
+---
+- name: NetBird access model (edge host)
+  hosts: edge_host
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Admin script and its input
+      ansible.builtin.copy:
+        dest: "{{ netbird_install_dir }}/{{ item.dest }}"
+        mode: "0700"
+        src: "{{ item.src | default(omit) }}"
+        content: "{{ item.content | default(omit) }}"
+      loop:
+        - {src: files/netbird-admin.py, dest: netbird-admin.py}
+        - dest: access-model.json
+          content: "{{ netbird_access | to_nice_json }}\n"
+      vars:
+        netbird_access:
+          api: "{{ netbird_api }}"
+          token_file: "{{ netbird_install_dir }}/admin.token"
+          roles: "{{ lab_roles }}"
+          services: "{{ netbird_services }}"
+          export_file: "{{ netbird_install_dir }}/policies-export.json"
+
+    - name: Apply the access model
+      ansible.builtin.command:
+        cmd: python3 netbird-admin.py access-model access-model.json
+        chdir: "{{ netbird_install_dir }}"
+      register: model
+      changed_when: model.stdout is search('^(created|updated) ', multiline=True)
+
+    - name: Show access-model changes and pending roles (journal these)
+      ansible.builtin.debug:
+        var: model.stdout_lines
+
+    - name: Export the policy set to the repository
+      ansible.builtin.fetch:
+        src: "{{ netbird_install_dir }}/policies-export.json"
+        dest: "{{ playbook_dir }}/policies-export.json"
+        flat: true
