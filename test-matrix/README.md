@@ -26,9 +26,10 @@ python3 -m venv .venv && . .venv/bin/activate && pip install -r requirements.txt
 ./aggregate.py results/ --fails                                        # summarize
 ```
 
-Credentials are supplied ambiently on the probing machine (PGPASSWORD,
-AWS profiles named after roles, bearer tokens via `auth_token_env`) —
-never in the matrix file, which is committed.
+Credentials are supplied ambiently on the probing machine (`~/.pgpass`
+written by `mkpgpass.py`, or PGPASSWORD; AWS profiles named after roles;
+bearer tokens via `auth_token_env`) — never in the matrix file, which is
+committed.
 
 Per-environment values are supplied the same way: `exec` commands may
 reference `$VAR` / `${VAR}`, expanded from the environment, and an unset
@@ -60,9 +61,20 @@ Settings sit on the resource and can be overridden per operation.
 
 Probing machine prerequisites (otherwise rows are ERROR, not deny):
 `psql` on PATH (macOS: `export PATH="$(brew --prefix libpq)/bin:$PATH"`),
-`PGPASSWORD` for the role, an AWS profile named after the role, and
-`LAB_DATA_BUCKET`. Run `--dry-run` first; the planned deny signature is
+each role's database password (`~/.pgpass` from `mkpgpass.py`, below,
+or `PGPASSWORD` for the role being run), an AWS profile named after the
+role, and `LAB_DATA_BUCKET`. Run `--dry-run` first; the planned deny signature is
 printed for each exec probe.
+
+Database passwords from the workloads vault, one `.pgpass` line per role
+(passwords are not printed; other `.pgpass` lines are kept):
+
+```bash
+ansible-vault view --vault-password-file .vault-pass \
+    ansible-workloads/group_vars/all/vault.yaml \
+  | test-matrix/.venv/bin/python test-matrix/mkpgpass.py
+unset PGPASSWORD    # an exported PGPASSWORD overrides .pgpass
+```
 
 ## Per-phase matrices
 

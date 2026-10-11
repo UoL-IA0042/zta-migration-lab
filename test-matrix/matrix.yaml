@@ -28,13 +28,13 @@ resources:
     type: exec
     # A deny is the database refusing (CONNECT or table privileges) or, in
     # ZTNA phases, the network dropping the connection. Anything else (no
-    # psql, wrong or missing PGPASSWORD) is an ERROR, not a deny.
+    # psql, wrong or missing password) is an ERROR, not a deny.
     deny_pattern: >-
       permission denied for (database|table|relation|sequence)|timeout expired|Connection refused|No route to host|Network is unreachable
     deny_on_timeout: true
     operations:
-      # PGPASSWORD supplied via environment on the probing machine; -w never
-      # prompts, so a missing password errors instead of hanging.
+      # Password from ~/.pgpass (mkpgpass.py) or PGPASSWORD on the probing
+      # machine; -w never prompts, so a missing password errors instead of hanging.
       read:
         command: >-
           psql -w -h 10.0.0.73 -U {role} -d labdb -tAc 'SELECT 1'
