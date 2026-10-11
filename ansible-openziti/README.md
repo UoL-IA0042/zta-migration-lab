@@ -8,6 +8,32 @@ privilege. The bootstrap script is the rule-to-policy translation
 artifact for this implementation — its diff against the Phase 1
 firewall ruleset feeds RQ2 directly.
 
+## Phase 2 layout (docs/phase-2-openziti.md)
+
+Public components run on the AWS edge host (`terraform-aws`,
+`enable_openziti=true`); the lab only dials out. Inventory groups:
+`edge_host` (address from `LAB_EDGE_IP`), `lab_gateway` (tpi2-4, lab end
+of the site-to-site tunnel). The controller/router plays below are being
+reworked onto the edge host (implementation step 4).
+
+### Step 3: public IdP path (`idp-path.yaml`)
+
+Publishes Keycloak at `https://idp.<edge-ip-dashed>.sslip.io` before any
+Ziti component exists: Caddy on the edge host (automatic Let's Encrypt,
+no ACME e-mail) proxies through the hub and tunnel to tpi2-4, which
+allows the edge subnet to `10.0.0.72:8080` and NATs it onto the LAN so
+tpi2-2's replies return the same way.
+
+```bash
+export LAB_EDGE_IP=$(terraform -chdir=../terraform-aws output -raw edge_host_public_ip)
+ansible-playbook -i inventory.yaml idp-path.yaml
+```
+
+The last play fetches the discovery document from the control machine
+through the edge host and asserts the issuer equals `keycloak_issuer`.
+Prerequisite: Keycloak redeployed with the public issuer
+(ansible-keycloak README, "Phase 2: public issuer").
+
 ## Deploy
 
 ```bash

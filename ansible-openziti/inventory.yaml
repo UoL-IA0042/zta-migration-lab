@@ -12,6 +12,17 @@ all:
       hosts:
         tpi2-4:
           ansible_host: 10.0.0.251
+    # Phase 2 edge host in AWS (terraform-aws enable_openziti). Address
+    # from the environment so no public IP is committed:
+    #   export LAB_EDGE_IP=$(terraform -chdir=../terraform-aws output -raw edge_host_public_ip)
+    edge_host:
+      hosts:
+        ziti-edge:
+          ansible_host: "{{ lookup('env', 'LAB_EDGE_IP') }}"
+    # tpi2-4 as the lab end of the site-to-site tunnel (IdP relay path)
+    lab_gateway:
+      hosts:
+        tpi2-4:
   vars:
     ansible_user: ubuntu
     ansible_python_interpreter: /usr/bin/python3

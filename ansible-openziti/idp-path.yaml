@@ -1,0 +1,157 @@
+# Phase 2 step 3 (docs/phase-2-openziti.md): publish the lab IdP through
+# the AWS edge host, before any OpenZiti component exists.
+#
+#   remote client --https--> edge host Caddy (idp.<ip-dashed>.sslip.io, Let's Encrypt)
+#        --> hub --s2s0--> tpi2-4 --NAT--> Keycloak 10.0.0.72:8080
+#
+# Run (after terraform-aws enable_openziti=true and the Keycloak redeploy):
+#   export LAB_EDGE_IP=$(terraform -chdir=../terraform-aws output -raw edge_host_public_ip)
+#   ansible-playbook -i inventory.yaml idp-path.yaml
+---
+- name: IdP relay path on tpi2-4 (tunnel -> Keycloak, NAT back to the LAN)
+  hosts: lab_gateway
+  become: true
+  gather_facts: true
+
+  handlers:
+    - name: Reload ufw
+      ansible.builtin.command: ufw reload
+      changed_when: true
+
+  tasks:
+    # Routed traffic is default-deny on tpi2-4 (Phase 1 perimeter ruleset).
+    - name: Allow the edge subnet to reach Keycloak through the tunnel
+      community.general.ufw:
+        rule: allow
+        route: true
+        interface_in: s2s0
+        from_ip: "{{ edge_subnet_cidr }}"
+        to_ip: "{{ keycloak_backend.split(':')[0] }}"
+        to_port: "{{ keycloak_backend.split(':')[1] }}"
+        proto: tcp
+        comment: "phase 2: edge host IdP proxy -> Keycloak"
+
+    # tpi2-2's default route is the ISP gateway, so without NAT its replies
+    # to 10.100.1.x would not come back through tpi2-4. Separate *nat block
+    # with its own marker, next to the OpenVPN role's block.
+    - name: NAT edge-subnet traffic onto the LAN
+      ansible.builtin.blockinfile:
+        path: /etc/ufw/before.rules
+        marker: "# {mark} ZTA-LAB IDP RELAY NAT"
+        insertbefore: '^\*filter'
+        block: |
+          *nat
+          :POSTROUTING ACCEPT [0:0]
+          -A POSTROUTING -s {{ edge_subnet_cidr }} -o {{ ansible_facts.default_ipv4.interface }} -j MASQUERADE
+          COMMIT
+      notify: Reload ufw
+
+- name: IdP reverse proxy on the edge host
+  hosts: edge_host
+  become: true
+  gather_facts: false               # facts gathered after the address check
+
+  pre_tasks:
+    - name: Require the edge host address
+      ansible.builtin.assert:
+        that: lab_edge_ip | length > 0
+        fail_msg: "Set LAB_EDGE_IP (terraform output -raw edge_host_public_ip in terraform-aws/)."
+        quiet: true
+
+    - name: Gather facts
+      ansible.builtin.setup:
+
+  tasks:
+    - name: Install Docker Engine and compose plugin
+      ansible.builtin.apt:
+        name: [docker.io, docker-compose-v2]
+        state: present
+        update_cache: true
+
+    - name: Enable and start Docker
+      ansible.builtin.systemd:
+        name: docker
+        enabled: true
+        state: started
+
+    - name: Create directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0750"
+      loop:
+        - "{{ edge_install_dir }}"
+        - "{{ edge_install_dir }}/caddy/data"
+        - "{{ edge_install_dir }}/caddy/config"
+
+    # No ACME e-mail: the certificate account carries no personal identifier.
+    - name: Caddyfile (IdP proxy, automatic Let's Encrypt certificate)
+      ansible.builtin.copy:
+        dest: "{{ edge_install_dir }}/Caddyfile"
+        mode: "0640"
+        content: |
+          {{ idp_public_host }} {
+              reverse_proxy {{ keycloak_backend }}
+          }
+      register: caddyfile
+
+    - name: Compose file
+      ansible.builtin.copy:
+        dest: "{{ edge_install_dir }}/docker-compose.yaml"
+        mode: "0640"
+        content: |
+          services:
+            caddy:
+              image: {{ caddy_image }}
+              restart: unless-stopped
+              network_mode: host
+              volumes:
+                - ./Caddyfile:/etc/caddy/Caddyfile:ro
+                - ./caddy/data:/data
+                - ./caddy/config:/config
+      register: compose
+
+    - name: Start (or recreate on change) the proxy
+      ansible.builtin.command:
+        cmd: docker compose up -d {{ '--force-recreate' if (caddyfile.changed or compose.changed) else '' }}
+        chdir: "{{ edge_install_dir }}"
+      register: up
+      changed_when: "'Started' in up.stderr or 'Created' in up.stderr or 'Recreated' in up.stderr"
+
+    - name: Record the proxy image (journal this)
+      ansible.builtin.command: docker compose images --format json
+      args:
+        chdir: "{{ edge_install_dir }}"
+      register: images
+      changed_when: false
+
+    - name: Show the proxy image
+      ansible.builtin.debug:
+        msg: "{{ images.stdout }}"
+
+- name: Verify the public IdP from the control machine
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  tasks:
+    - name: Fetch the discovery document through the edge host
+      ansible.builtin.uri:
+        url: "{{ keycloak_issuer }}/.well-known/openid-configuration"
+        return_content: true
+      register: discovery
+      retries: 18                   # first request waits for the Let's Encrypt certificate
+      delay: 10
+      until: discovery.status == 200
+
+    - name: Require the issuer the ZTNA signer will be configured with
+      ansible.builtin.assert:
+        that: discovery.json.issuer == keycloak_issuer
+        fail_msg: >-
+          served issuer {{ discovery.json.issuer }} != {{ keycloak_issuer }}
+          (redeploy ansible-keycloak with LAB_EDGE_IP set and -e keycloak_reset=yes)
+        quiet: true
+
+    - name: Report (journal this)
+      ansible.builtin.debug:
+        msg: "IdP reachable at {{ keycloak_issuer }} with a valid public certificate"

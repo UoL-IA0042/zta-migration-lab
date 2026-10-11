@@ -13,9 +13,21 @@ ziti_router_port: 3022
 ziti_admin_user: admin
 ziti_admin_password: "CHANGE-ME-USE-VAULT"
 
+# --- Phase 2 edge host (docs/phase-2-openziti.md) ----------------------
+# Elastic IP from terraform-aws (edge_host_public_ip), via the environment
+# so no public address is committed. The sslip.io names embed it.
+lab_edge_ip: "{{ lookup('env', 'LAB_EDGE_IP') }}"
+lab_edge_dashed: "{{ lab_edge_ip | replace('.', '-') }}"
+idp_public_host: "idp.{{ lab_edge_dashed }}.sslip.io"
+edge_subnet_cidr: 10.100.1.0/24          # terraform-aws local.edge_subnet_cidr
+keycloak_backend: "10.0.0.72:8080"       # tpi2-2, reached through the tunnel
+edge_install_dir: /opt/edge
+caddy_image: "caddy:2.11"                # VERIFY; journal the digest
+
 # Keycloak integration (ext-jwt-signer). Issuer must EXACTLY match the
 # value printed by ansible-keycloak's final task — trailing-slash exact.
-keycloak_issuer: "http://10.0.0.72:8080/realms/lab"
+# Phase 2: the public issuer served through the edge host.
+keycloak_issuer: "https://{{ idp_public_host }}/realms/lab"
 keycloak_client_id: "openziti"
 
 # Roles double as Ziti identity/service-policy attributes.
