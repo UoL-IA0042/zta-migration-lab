@@ -86,6 +86,56 @@ cd /opt/openziti && sudo docker compose exec ziti-controller bash
 ziti edge login https://localhost:1280 -u admin -y   # prompts for the password
 ```
 
+### Step 6: client (Ziti Desktop Edge for macOS)
+
+The remote worker's client. One network entry; the Keycloak login picks
+the role: its `preferred_username` matches exactly one Ziti identity's
+external id.
+
+| Term | Meaning here |
+|---|---|
+| network entry | what Ziti Desktop Edge adds for the controller URL; one is enough for all roles |
+| external authentication | the browser login to Keycloak that Ziti Desktop Edge starts (badge "Authentication Required", orange, then "Authenticated", green) |
+| intercept | an address and port Ziti Desktop Edge captures for a service the identity may dial; anything else is not routed into the overlay |
+
+Install and add the network (once):
+
+1. Install Ziti Desktop Edge from the Mac App Store; 2.51 or later is
+   required for external authentication (2.59 current at the time of
+   writing). Journal the version (About).
+2. Remove or disconnect every Phase 1 OpenVPN profile (step 5).
+3. In Ziti Desktop Edge: `+` (add identity) -> **With URL ...** ->
+   `https://ctrl.<edge-ip-dashed>.sslip.io:1280`. If adding by URL fails,
+   add **With JWT ...** using the network JWT instead:
+   ```bash
+   curl -sk "https://ctrl.<edge-ip-dashed>.sslip.io:1280/edge/client/v1/network-jwts" \
+     | jq -r '.data[0].token' > ~/Downloads/zta-lab-network.jwt
+   ```
+4. Turn the identity on, click the key badge, log in as the role in the
+   browser window that opens. One provider (`keycloak`) is configured,
+   so there is no provider choice.
+
+Per role (matrix and perf runs are one role at a time):
+
+1. Keycloak keeps a browser session, so the next login would silently
+   reuse the previous role. Sign out first:
+   `https://idp.<edge-ip-dashed>.sslip.io/realms/lab/account` -> Sign out,
+   in the default browser (Ziti Desktop Edge opens the login there).
+2. In Ziti Desktop Edge, **Forget This Identity**, then add it again
+   (**With URL ...**), then authenticate as the next role.
+3. Before running anything, check:
+   - the badge is green and the identity's service list is exactly the
+     role's dial set (access model below; contractor sees only
+     intranet-web);
+   - `route -n get 10.0.0.73` shows a `utun` interface (the overlay),
+     and no OpenVPN `tun`/`utun` is up;
+   - `curl -s -o /dev/null -w '%{http_code}\n' http://10.0.0.73:8080/`
+     prints 200.
+4. Journal: role, Ziti Desktop Edge version, any login problems.
+
+Server-side cross-check (edge host, Ziti CLI as in step 4): `ziti edge
+list api-sessions` shows which identity is logged in.
+
 ## Access model (mirrors the phase-2 test matrix)
 
 Services intercept the Phase 1 addresses, so the matrix keeps its
