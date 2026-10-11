@@ -1,15 +1,34 @@
-# OpenZiti: controller on tpi2-2 (quickstart mode), edge router on tpi2-4,
-# then declarative bootstrap of the access model (ext-jwt Keycloak auth,
-# identities, services, bind/dial policies).
+# Phase 2 step 4 (docs/phase-2-openziti.md): OpenZiti overlay.
+#   edge host: controller + public router (hosts aws-app), next to Caddy
+#   tpi2-4:    private router (no listener, dials out; hosts on-prem services)
+# then the declarative access model (templates/bootstrap-ziti.sh.j2) and
+# a check that both routers are online, linked, and hosting their services.
 #
-# The controller runs `ziti edge quickstart` for the lab: single-container
-# controller+router with generated PKI, adequate for a small-scale
-# deployment and fully scripted. VERIFY image tag and CLI flags against
-# current OpenZiti docs at deployment time; record versions in journal.
+# Run after idp-path.yaml has verified the public issuer:
+#   export LAB_EDGE_IP=$(terraform -chdir=../terraform-aws output -raw edge_host_public_ip)
+#   ansible-playbook -i inventory.yaml --vault-password-file ../.vault-pass site.yaml
+# After a tpi2-4 reset: add -e ziti_lab_router_reenroll=true
 ---
-- name: Deploy Ziti controller (tpi2-2)
-  hosts: ziti_controller
+- name: Controller and public router (edge host)
+  hosts: edge_host
   become: true
+  gather_facts: false               # facts gathered after the checks
+
+  pre_tasks:
+    - name: Require the edge host address and the vaulted admin password
+      ansible.builtin.assert:
+        that:
+          - lab_edge_ip | length > 0
+          - vault_ziti_admin_password is defined
+          - vault_ziti_admin_password | length >= 16
+        fail_msg: >-
+          Set LAB_EDGE_IP (terraform output -raw edge_host_public_ip) and create
+          group_vars/all/vault.yaml with vault_ziti_admin_password (README).
+        quiet: true
+
+    - name: Gather facts
+      ansible.builtin.setup:
+
   tasks:
     - name: Install Docker Engine and compose plugin
       ansible.builtin.apt:
@@ -17,113 +36,301 @@
         state: present
         update_cache: true
 
-    - name: Create install dir
+    - name: Enable and start Docker
+      ansible.builtin.systemd:
+        name: docker
+        enabled: true
+        state: started
+
+    - name: Install directory
       ansible.builtin.file:
         path: "{{ ziti_install_dir }}"
         state: directory
-        mode: "0750"
+        mode: "0755"
 
-    - name: Compose file for controller quickstart
-      ansible.builtin.copy:
-        dest: "{{ ziti_install_dir }}/docker-compose.yaml"
-        mode: "0640"
-        content: |
-          services:
-            ziti:
-              image: {{ ziti_image }}
-              restart: unless-stopped
-              network_mode: host
-              command: >
-                edge quickstart
-                --ctrl-address {{ ziti_ctrl_advertised_address }}
-                --ctrl-port {{ ziti_ctrl_port }}
-                --router-address {{ ziti_ctrl_advertised_address }}
-                --router-port {{ ziti_router_port }}
-                --password ${ZITI_PWD}
-                --home /ziti-home
-              environment:
-                ZITI_PWD: "{{ ziti_admin_password }}"
-              volumes:
-                - {{ ziti_install_dir }}/home:/ziti-home
+    - name: State directories (owned by the image user)
+      ansible.builtin.file:
+        path: "{{ ziti_install_dir }}/{{ item }}"
+        state: directory
+        owner: "{{ ziti_uid }}"
+        group: "{{ ziti_uid }}"
+        mode: "0700"
+      loop: [controller, router]
 
-    - name: Start controller
-      ansible.builtin.command:
-        cmd: docker compose up -d
-        chdir: "{{ ziti_install_dir }}"
-      register: up
-      changed_when: "'Started' in up.stderr or 'Created' in up.stderr"
-
-    - name: Wait for controller API
-      ansible.builtin.uri:
-        url: "https://{{ ziti_ctrl_advertised_address }}:{{ ziti_ctrl_port }}/edge/client/v1/version"
-        validate_certs: false
-        status_code: 200
-      retries: 24
-      delay: 5
-      register: api
-      until: api.status == 200
-
-    - name: Template bootstrap script
+    - name: Compose file
       ansible.builtin.template:
-        src: templates/bootstrap-ziti.sh.j2
-        dest: "{{ ziti_install_dir }}/home/bootstrap-ziti.sh"
-        mode: "0750"
-      register: bootstrap
+        src: templates/edge-compose.yaml.j2
+        dest: "{{ ziti_install_dir }}/docker-compose.yaml"
+        mode: "0644"
 
-    - name: Run access-model bootstrap inside controller container
+    - name: Start the controller
       ansible.builtin.command:
-        cmd: >
-          docker compose exec -e ZITI_ADMIN_PASSWORD={{ ziti_admin_password }}
-          ziti bash /ziti-home/bootstrap-ziti.sh
+        cmd: docker compose up -d ziti-controller
         chdir: "{{ ziti_install_dir }}"
-      when: bootstrap.changed
-      register: model
-      changed_when: "'bootstrapped' in model.stdout"
+      environment:
+        ZITI_PWD: "{{ ziti_admin_password }}"
+      register: ctrl_up
+      changed_when: ctrl_up.stderr is search('Creat|Recreat|Start')
 
-# Dedicated edge router on tpi2-4 (data path parity with the VPN gateway
-# placement): enroll against the controller. Kept as a separate play so
-# the AWS router instance can be added to ziti_routers later.
-- name: Deploy edge router (tpi2-4)
-  hosts: ziti_routers
+    - name: Wait for the controller API
+      ansible.builtin.uri:
+        url: "https://localhost:{{ ziti_ctrl_port }}/edge/client/v1/version"
+        validate_certs: false
+      register: ctrl_api
+      until: ctrl_api.status == 200
+      retries: 30
+      delay: 5
+
+    - name: Bootstrap and verify scripts
+      ansible.builtin.template:
+        src: "templates/{{ item }}.j2"
+        dest: "{{ ziti_install_dir }}/controller/{{ item }}"
+        owner: "{{ ziti_uid }}"
+        group: "{{ ziti_uid }}"
+        mode: "0700"
+      loop: [bootstrap-ziti.sh, verify-ziti.sh]
+
+    - name: Apply the access model
+      ansible.builtin.command:
+        cmd: >-
+          docker compose exec -T -e ZITI_ADMIN_PASSWORD ziti-controller
+          bash /ziti-controller/bootstrap-ziti.sh
+        chdir: "{{ ziti_install_dir }}"
+      environment:
+        ZITI_ADMIN_PASSWORD: "{{ ziti_admin_password }}"
+      register: model
+      changed_when: model.stdout is search('created|re-enrolled')
+
+    - name: Show access-model changes
+      ansible.builtin.debug:
+        var: model.stdout_lines
+
+    # Enrollment tokens exist only until the routers have enrolled (they are
+    # removed after the final check).
+    - name: Look for router enrollment tokens
+      ansible.builtin.stat:
+        path: "{{ ziti_install_dir }}/controller/jwt/{{ item }}.jwt"
+      loop: ["{{ ziti_public_router }}", "{{ ziti_lab_router }}"]
+      register: jwt
+
+    - name: Hand the public router its token
+      ansible.builtin.copy:
+        src: "{{ jwt.results[0].stat.path }}"
+        dest: "{{ ziti_install_dir }}/router/enroll.jwt"
+        remote_src: true
+        owner: "{{ ziti_uid }}"
+        group: "{{ ziti_uid }}"
+        mode: "0600"
+      when: jwt.results[0].stat.exists
+
+    - name: Start the public router
+      ansible.builtin.command:
+        cmd: docker compose up -d ziti-router
+        chdir: "{{ ziti_install_dir }}"
+      register: router_up
+      changed_when: router_up.stderr is search('Creat|Recreat|Start')
+
+    - name: Read the lab router's token
+      ansible.builtin.slurp:
+        src: "{{ jwt.results[1].stat.path }}"
+      register: lab_router_jwt
+      when: jwt.results[1].stat.exists
+      no_log: true
+
+    - name: Record image digests (journal these)
+      ansible.builtin.command:
+        cmd: >-
+          docker image inspect --format '{{ "{{" }}index .RepoDigests 0{{ "}}" }}'
+          {{ ziti_controller_image }} {{ ziti_router_image }}
+      register: digests
+      changed_when: false
+
+    - name: Show image digests
+      ansible.builtin.debug:
+        var: digests.stdout_lines
+
+- name: Private router (tpi2-4)
+  hosts: lab_router
   become: true
+
+  vars:
+    edge: "{{ groups['edge_host'][0] }}"
+
+  handlers:
+    - name: Restart Docker
+      ansible.builtin.systemd:
+        name: docker
+        state: restarted
+
   tasks:
+    # tpi2-4 is the ufw-managed gateway (perimeter ruleset, site-to-site
+    # NAT). Docker must not rewrite its iptables; the router uses host
+    # networking and needs no Docker NAT or forwarding rules.
+    - name: Docker config directory
+      ansible.builtin.file:
+        path: /etc/docker
+        state: directory
+        mode: "0755"
+
+    - name: Docker daemon config (no iptables management)
+      ansible.builtin.copy:
+        dest: /etc/docker/daemon.json
+        mode: "0644"
+        content: |
+          {
+            "iptables": false,
+            "ip6tables": false
+          }
+      notify: Restart Docker
+
     - name: Install Docker Engine and compose plugin
       ansible.builtin.apt:
         name: [docker.io, docker-compose-v2]
         state: present
         update_cache: true
 
-    - name: Create install dir
+    - name: Apply Docker config before starting the router
+      ansible.builtin.meta: flush_handlers
+
+    - name: Enable and start Docker
+      ansible.builtin.systemd:
+        name: docker
+        enabled: true
+        state: started
+
+    - name: Install directory
       ansible.builtin.file:
         path: "{{ ziti_install_dir }}"
         state: directory
-        mode: "0750"
+        mode: "0755"
 
-    # Router creation + enrollment token issuance happens on the
-    # controller; see README runbook. Token is placed at
-    # {{ ziti_install_dir }}/enrollment.jwt before this play's router
-    # container will start successfully.
-    - name: Compose file for edge router
+    # A new token only enrolls a router with no identity, so re-enrolling
+    # discards the old router state (config and certificates) first.
+    - name: Stop the router and discard its old identity (re-enroll only)
+      ansible.builtin.shell:
+        cmd: |
+          set -e
+          [ ! -f docker-compose.yaml ] || docker compose down
+          rm -rf router
+        chdir: "{{ ziti_install_dir }}"
+      when: ziti_lab_router_reenroll | bool
+      changed_when: true
+
+    - name: State directory (owned by the image user)
+      ansible.builtin.file:
+        path: "{{ ziti_install_dir }}/router"
+        state: directory
+        owner: "{{ ziti_uid }}"
+        group: "{{ ziti_uid }}"
+        mode: "0700"
+
+    - name: Enrollment token
       ansible.builtin.copy:
-        dest: "{{ ziti_install_dir }}/docker-compose.yaml"
-        mode: "0640"
-        content: |
-          services:
-            ziti-router:
-              image: {{ ziti_router_image }}
-              restart: unless-stopped
-              network_mode: host
-              environment:
-                ZITI_CTRL_ADVERTISED_ADDRESS: {{ ziti_ctrl_advertised_address }}
-                ZITI_CTRL_ADVERTISED_PORT: "{{ ziti_ctrl_port }}"
-                ZITI_ENROLL_TOKEN: /ziti-router/enrollment.jwt
-                ZITI_ROUTER_MODE: host
-              volumes:
-                - {{ ziti_install_dir }}:/ziti-router
+        content: "{{ hostvars[edge].lab_router_jwt.content | b64decode }}"
+        dest: "{{ ziti_install_dir }}/router/enroll.jwt"
+        owner: "{{ ziti_uid }}"
+        group: "{{ ziti_uid }}"
+        mode: "0600"
+      when: hostvars[edge].lab_router_jwt.content is defined
+      no_log: true
 
-    - name: Start router (requires enrollment.jwt present)
+    - name: Compose file
+      ansible.builtin.template:
+        src: templates/lab-router-compose.yaml.j2
+        dest: "{{ ziti_install_dir }}/docker-compose.yaml"
+        mode: "0644"
+
+    - name: Start the private router
       ansible.builtin.command:
         cmd: docker compose up -d
         chdir: "{{ ziti_install_dir }}"
-      register: rup
-      changed_when: "'Started' in rup.stderr or 'Created' in rup.stderr"
+      register: lab_up
+      changed_when: lab_up.stderr is search('Creat|Recreat|Start')
+
+    - name: Record image digest (journal it)
+      ansible.builtin.command:
+        cmd: docker image inspect --format '{{ "{{" }}index .RepoDigests 0{{ "}}" }}' {{ ziti_router_image }}
+      register: lab_digest
+      changed_when: false
+
+    - name: Show image digest
+      ansible.builtin.debug:
+        var: lab_digest.stdout
+
+- name: Check the overlay (edge host)
+  hosts: edge_host
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Routers online, linked, and hosting their services
+      ansible.builtin.command:
+        cmd: >-
+          docker compose exec -T -e ZITI_ADMIN_PASSWORD ziti-controller
+          bash /ziti-controller/verify-ziti.sh
+        chdir: "{{ ziti_install_dir }}"
+      environment:
+        ZITI_ADMIN_PASSWORD: "{{ ziti_admin_password }}"
+      register: overlay
+      changed_when: false
+      vars:
+        # empty until the controller answers; checks then simply retry
+        state: >-
+          {{ overlay.stdout | from_json
+             if overlay.rc == 0 and overlay.stdout | length > 0
+             else {'routers': [], 'links': [], 'terminators': []} }}
+        online: "{{ state.routers | selectattr('isOnline') | map(attribute='name') | list }}"
+        linked: >-
+          {{ state.links | selectattr('state', 'equalto', 'Connected')
+             | map(attribute='src') | list
+             + state.links | selectattr('state', 'equalto', 'Connected')
+             | map(attribute='dst') | list }}
+        hosted: "{{ state.terminators | map(attribute='service') | list }}"
+      until:
+        - overlay.rc == 0
+        - ziti_public_router in online
+        - ziti_lab_router in online
+        - ziti_public_router in linked
+        - ziti_lab_router in linked
+        - ziti_services | map(attribute='name') | difference(hosted) | length == 0
+      retries: 24
+      delay: 10
+
+    - name: Overlay state
+      ansible.builtin.debug:
+        msg: "{{ overlay.stdout | from_json }}"
+
+    # Single-use tokens; both routers are enrolled now.
+    - name: Remove enrollment tokens
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ ziti_install_dir }}/controller/jwt/{{ ziti_public_router }}.jwt"
+        - "{{ ziti_install_dir }}/controller/jwt/{{ ziti_lab_router }}.jwt"
+        - "{{ ziti_install_dir }}/router/enroll.jwt"
+
+- name: Remove the lab router's token (tpi2-4)
+  hosts: lab_router
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Remove enrollment token
+      ansible.builtin.file:
+        path: "{{ ziti_install_dir }}/router/enroll.jwt"
+        state: absent
+
+- name: Controller reachable from the control machine
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Client API through the public name
+      ansible.builtin.uri:
+        url: "https://{{ ziti_ctrl_host }}:{{ ziti_ctrl_port }}/edge/client/v1/version"
+        validate_certs: false     # controller PKI; clients trust it via the network JWT
+      register: version
+
+    - name: Controller version
+      ansible.builtin.debug:
+        msg: "{{ version.json.data.version | default(version.json) }}"

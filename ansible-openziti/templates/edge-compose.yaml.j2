@@ -1,0 +1,51 @@
+# Managed by ansible-openziti/site.yaml. Controller and public router on
+# the edge host, following the upstream compose files for v{{ ziti_version }}
+# (dist/docker-images/ziti-{controller,router}/compose.yml), with host
+# networking and bind-mounted state.
+services:
+  ziti-controller:
+    image: {{ ziti_controller_image }}
+    restart: unless-stopped
+    network_mode: host
+    user: "{{ ziti_uid }}"
+    command: run config.yml
+    environment:
+      ZITI_CTRL_ADVERTISED_ADDRESS: {{ ziti_ctrl_host }}
+      ZITI_CTRL_ADVERTISED_PORT: "{{ ziti_ctrl_port }}"
+      ZITI_BOOTSTRAP_CLUSTER: "true"
+      ZITI_CLUSTER_NODE_NAME: {{ ziti_cluster_node_name }}
+      ZITI_CLUSTER_TRUST_DOMAIN: {{ ziti_trust_domain }}
+      # Admin password for the first-run database bootstrap. Passed in by
+      # the playbook at "up" time, not stored in this file.
+      ZITI_PWD: ${ZITI_PWD:-}
+    volumes:
+      - {{ ziti_install_dir }}/controller:/ziti-controller
+    healthcheck:
+      test: [CMD, ziti, agent, stats]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+
+  ziti-router:
+    image: {{ ziti_router_image }}
+    restart: unless-stopped
+    network_mode: host
+    user: "{{ ziti_uid }}"
+    command: run config.yml
+    environment:
+      ZITI_CTRL_ADVERTISED_ADDRESS: {{ ziti_ctrl_host }}
+      ZITI_CTRL_ADVERTISED_PORT: "{{ ziti_ctrl_port }}"
+      ZITI_ENROLL_TOKEN: /ziti-router/enroll.jwt   # used only until enrolled
+      ZITI_ROUTER_NAME: {{ ziti_public_router }}
+      ZITI_ROUTER_ADVERTISED_ADDRESS: {{ ziti_router_host }}
+      ZITI_ROUTER_PORT: "{{ ziti_router_port }}"
+      ZITI_ROUTER_MODE: host                       # hosts aws-app
+    volumes:
+      - {{ ziti_install_dir }}/router:/ziti-router
+    healthcheck:
+      test: [CMD, ziti, agent, stats]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 15s

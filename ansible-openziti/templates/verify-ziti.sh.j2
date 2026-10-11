@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Managed by ansible-openziti/site.yaml. Prints the overlay state as JSON
+# for the playbook's checks: routers online, router links, terminators.
+set -euo pipefail
+ziti edge login "https://localhost:{{ ziti_ctrl_port }}" \
+  -u "{{ ziti_admin_user }}" -p "${ZITI_ADMIN_PASSWORD:?}" -y >/dev/null
+routers=$(ziti edge list edge-routers 'true limit 100' -j \
+  | jq '[.data[] | {name, isOnline}]')
+links=$(ziti fabric list links 'true limit 100' -j \
+  | jq '[.data[] | {src: .sourceRouter.name, dst: .destRouter.name, state}]')
+terminators=$(ziti fabric list terminators 'true limit 500' -j \
+  | jq '[.data[] | {service: .service.name, router: .router.name}]')
+jq -cn --argjson r "$routers" --argjson l "$links" --argjson t "$terminators" \
+  '{routers: $r, links: $l, terminators: $t}'

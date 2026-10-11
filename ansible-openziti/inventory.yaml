@@ -1,26 +1,21 @@
-# OpenZiti: controller on tpi2-2, edge router on tpi2-4.
-# The AWS-side router runs on an EC2 instance added in phase 2
-# (terraform-aws; add its address under ziti_routers when created).
+# OpenZiti, Phase 2: controller, public router and IdP proxy on the AWS
+# edge host; private router on tpi2-4. Edge host address from the
+# environment so no public IP is committed:
+#   export LAB_EDGE_IP=$(terraform -chdir=../terraform-aws output -raw edge_host_public_ip)
 ---
 all:
   children:
-    ziti_controller:
-      hosts:
-        tpi2-2:
-          ansible_host: 10.0.0.72
-    ziti_routers:
-      hosts:
-        tpi2-4:
-          ansible_host: 10.0.0.251
-    # Phase 2 edge host in AWS (terraform-aws enable_openziti). Address
-    # from the environment so no public IP is committed:
-    #   export LAB_EDGE_IP=$(terraform -chdir=../terraform-aws output -raw edge_host_public_ip)
     edge_host:
       hosts:
         ziti-edge:
           ansible_host: "{{ lookup('env', 'LAB_EDGE_IP') }}"
-    # tpi2-4 as the lab end of the site-to-site tunnel (IdP relay path)
+    # tpi2-4: lab end of the site-to-site tunnel (IdP relay path, idp-path.yaml)
     lab_gateway:
+      hosts:
+        tpi2-4:
+          ansible_host: 10.0.0.251
+    # tpi2-4: private OpenZiti router (site.yaml)
+    lab_router:
       hosts:
         tpi2-4:
   vars:

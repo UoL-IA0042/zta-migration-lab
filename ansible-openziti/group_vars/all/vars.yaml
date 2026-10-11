@@ -1,0 +1,91 @@
+# OpenZiti, Phase 2 (docs/phase-2-openziti.md).
+# Secrets: group_vars/all/vault.yaml (ansible-vault), see README.
+---
+# --- Images (VERIFY at deploy; journal the image digests) --------------
+# v2.0.8 is the release whose CLI flags and image entrypoints this role
+# was written against. Controller and routers must stay on the same 2.x.
+ziti_version: "2.0.8"
+ziti_controller_image: "openziti/ziti-controller:{{ ziti_version }}"
+ziti_router_image: "openziti/ziti-router:{{ ziti_version }}"
+ziti_install_dir: /opt/openziti
+ziti_uid: 2171                    # image user (ziggy); owns the state dirs
+
+# --- Edge host (terraform-aws enable_openziti) ------------------------
+# Elastic IP from terraform-aws (edge_host_public_ip), via the environment
+# so no public address is committed. The sslip.io names embed it.
+lab_edge_ip: "{{ lookup('env', 'LAB_EDGE_IP') }}"
+lab_edge_dashed: "{{ lab_edge_ip | replace('.', '-') }}"
+idp_public_host: "idp.{{ lab_edge_dashed }}.sslip.io"
+ziti_ctrl_host: "ctrl.{{ lab_edge_dashed }}.sslip.io"
+ziti_router_host: "router.{{ lab_edge_dashed }}.sslip.io"
+ziti_ctrl_port: 1280              # client API, management API, router control
+ziti_router_port: 3022            # edge clients and router links (one port)
+ziti_cluster_node_name: ctrl1     # 2.x controllers always run as a cluster
+ziti_trust_domain: zta-lab
+
+edge_subnet_cidr: 10.100.1.0/24          # terraform-aws local.edge_subnet_cidr
+keycloak_backend: "10.0.0.72:8080"       # tpi2-2, reached through the tunnel
+edge_install_dir: /opt/edge
+caddy_image: "caddy:2.11"                # VERIFY; journal the digest
+
+# --- Routers ------------------------------------------------------------
+# Public router on the edge host: remote clients connect to it; it hosts
+# the AWS service. Private router on tpi2-4: no link listener, dials out
+# to the public router; it hosts the on-prem services.
+ziti_public_router: aws-edge
+ziti_lab_router: lab-router
+# After a tpi2-4 reset (its router identity is gone), issue a new
+# enrollment token: -e ziti_lab_router_reenroll=true
+ziti_lab_router_reenroll: false
+
+# --- Admin ----------------------------------------------------------------
+ziti_admin_user: admin
+ziti_admin_password: "{{ vault_ziti_admin_password }}"
+
+# --- Keycloak (ext-jwt-signer) --------------------------------------------
+# Issuer must EXACTLY match the token iss and the discovery document.
+keycloak_issuer: "https://{{ idp_public_host }}/realms/lab"
+keycloak_client_id: "openziti"    # also the access-token audience
+keycloak_claim: preferred_username  # matched to identity externalId
+
+# Roles double as Ziti identity names, external ids and role attributes.
+lab_roles:
+  - remote-admin
+  - remote-developer
+  - remote-analyst
+  - remote-contractor
+
+# --- Services (docs/phase-2-openziti.md, access model) --------------------
+# Intercepts are the real Phase 1 addresses, so the test matrix keeps its
+# resources. hosted_by: lab (tpi2-4 router) or public (edge host router).
+ziti_services:
+  - name: intranet-web
+    host: 10.0.0.73
+    port: 8080
+    hosted_by: lab
+    dial_roles: [remote-admin, remote-developer, remote-analyst, remote-contractor]
+  - name: file-service
+    host: 10.0.0.73
+    port: 445
+    hosted_by: lab
+    dial_roles: [remote-admin, remote-developer, remote-analyst]
+  - name: postgres
+    host: 10.0.0.73
+    port: 5432
+    hosted_by: lab
+    dial_roles: [remote-admin, remote-developer, remote-analyst]
+  - name: legacy-service
+    host: 10.0.0.73
+    port: 8023
+    hosted_by: lab
+    dial_roles: [remote-admin]          # segment-and-proxy: admin only
+  - name: aws-app
+    host: 10.100.10.10
+    port: 8080
+    hosted_by: public
+    dial_roles: [remote-admin, remote-developer, remote-analyst]
+  - name: perf-iperf3                   # perf battery only, not in the matrix
+    host: 10.0.0.73
+    port: 5201
+    hosted_by: lab
+    dial_roles: [remote-admin]

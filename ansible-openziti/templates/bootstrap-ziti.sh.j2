@@ -1,66 +1,147 @@
 #!/usr/bin/env bash
-# Declarative bootstrap of the Ziti access model: ext-jwt-signer for
-# Keycloak, auth policy, service definitions, and bind/dial policies.
-# Idempotent-by-name: re-running skips entities that already exist.
-# Runs inside the controller container (ziti CLI available).
+# Managed by ansible-openziti/site.yaml. Declarative bootstrap of the
+# OpenZiti access model: routers, Keycloak ext-jwt-signer, auth policy,
+# identities, services (real Phase 1 addresses), and the bind, dial,
+# edge-router and service-edge-router policies.
+#
+# This file is the rule-to-policy translation for the OpenZiti phase; its
+# diff against the Phase 1 perimeter ruleset is RQ2 data.
+#
+# Runs inside the controller container. Every entity is created when
+# missing and updated to the values below when present, so a re-run
+# converges. Entities removed from group_vars are NOT deleted.
+# Prints "created ..." / "re-enrolled ..." for each change it makes.
 set -euo pipefail
 
-ziti edge login https://{{ ziti_ctrl_advertised_address }}:{{ ziti_ctrl_port }} \
-  -u "{{ ziti_admin_user }}" -p "${ZITI_ADMIN_PASSWORD}" -y
+ziti edge login "https://localhost:{{ ziti_ctrl_port }}" \
+  -u "{{ ziti_admin_user }}" -p "${ZITI_ADMIN_PASSWORD:?}" -y >/dev/null
 
-exists() { ziti edge list "$1" "name=\"$2\"" -j | grep -q '"name"'; }
+JWT_DIR=/ziti-controller/jwt     # router enrollment tokens (single use)
+umask 077
+mkdir -p "$JWT_DIR"
 
-# --- External JWT signer: Keycloak ------------------------------------
-if ! exists ext-jwt-signers keycloak; then
-  ziti edge create ext-jwt-signer keycloak \
-    --issuer  "{{ keycloak_issuer }}" \
-    --audience "{{ keycloak_client_id }}" \
-    --jwks-endpoint "{{ keycloak_issuer }}/protocol/openid-connect/certs" \
-    --client-id "{{ keycloak_client_id }}" \
-    --claims-property "preferred_username" \
-    --external-auth-url "{{ keycloak_issuer }}"
+# id of the entity named $2 in list $1; empty when it does not exist
+id_of() { ziti edge list "$1" "name=\"$2\"" -j | jq -r '.data[0].id // empty'; }
+q() { "$@" >/dev/null; }
+
+# --- Routers ----------------------------------------------------------------
+# Tunneler-enabled so each router has an identity that can host services.
+ensure_router() {   # name role-attribute
+  if [[ -z "$(id_of edge-routers "$1")" ]]; then
+    q ziti edge create edge-router "$1" --tunneler-enabled \
+      --role-attributes "$2" -o "$JWT_DIR/$1.jwt"
+    echo "created edge-router $1"
+  else
+    q ziti edge update edge-router "$1" --tunneler-enabled --role-attributes "$2"
+  fi
+}
+ensure_router "{{ ziti_public_router }}" public
+ensure_router "{{ ziti_lab_router }}" lab
+{% if ziti_lab_router_reenroll | bool %}
+q ziti edge re-enroll edge-router "{{ ziti_lab_router }}" -o "$JWT_DIR/{{ ziti_lab_router }}.jwt"
+echo "re-enrolled edge-router {{ ziti_lab_router }}"
+{% endif %}
+
+# --- Keycloak: external JWT signer and auth policy ---------------------------
+# Access tokens (target-token ACCESS) carry aud=openziti (audience mapper)
+# and preferred_username, which is matched to the identity external id.
+ISSUER="{{ keycloak_issuer }}"
+SIGNER_ARGS=(
+  --jwks-endpoint "$ISSUER/protocol/openid-connect/certs"
+  --audience "{{ keycloak_client_id }}"
+  --claims-property "{{ keycloak_claim }}"
+  --client-id "{{ keycloak_client_id }}"
+  --scopes openid,profile
+  --external-auth-url "$ISSUER"
+  --target-token ACCESS
+)
+if [[ -z "$(id_of ext-jwt-signers keycloak)" ]]; then
+  q ziti edge create ext-jwt-signer keycloak "$ISSUER" --external-id "${SIGNER_ARGS[@]}"
+  echo "created ext-jwt-signer keycloak"
+else
+  q ziti edge update ext-jwt-signer keycloak --issuer "$ISSUER" --use-external-id "${SIGNER_ARGS[@]}"
+fi
+SIGNER_ID="$(id_of ext-jwt-signers keycloak)"
+
+# Primary external JWT only: no certificate or password login.
+if [[ -z "$(id_of auth-policies keycloak-only)" ]]; then
+  q ziti edge create auth-policy keycloak-only \
+    --primary-ext-jwt-allowed --primary-ext-jwt-allowed-signers "$SIGNER_ID"
+  echo "created auth-policy keycloak-only"
 fi
 
-if ! exists auth-policies keycloak-only; then
-  SIGNER_ID=$(ziti edge list ext-jwt-signers 'name="keycloak"' -j \
-    | python3 -c 'import json,sys; print(json.load(sys.stdin)["data"][0]["id"])')
-  ziti edge create auth-policy keycloak-only \
-    --primary-ext-jwt-allowed \
-    --primary-ext-jwt-allowed-signers "$SIGNER_ID"
-fi
-
-# --- Identities (one per role, authenticated via Keycloak) ------------
+# --- Identities: one per role -----------------------------------------------
+ensure_identity() {   # role
+  if [[ -z "$(id_of identities "$1")" ]]; then
+    q ziti edge create identity "$1" --auth-policy keycloak-only \
+      --external-id "$1" --role-attributes "$1"
+    echo "created identity $1"
+  else
+    q ziti edge update identity "$1" --auth-policy keycloak-only \
+      --external-id "$1" --role-attributes "$1"
+  fi
+}
 {% for role in lab_roles %}
-if ! exists identities "{{ role }}"; then
-  ziti edge create identity "{{ role }}" \
-    --auth-policy keycloak-only \
-    --external-id "{{ role }}" \
-    --role-attributes "{{ role }}"
-fi
+ensure_identity "{{ role }}"
 {% endfor %}
 
-# --- Services, configs, and policies ----------------------------------
+# --- Services, configs and service policies -----------------------------------
+ensure_config() {   # name type json
+  if [[ -z "$(id_of configs "$1")" ]]; then
+    q ziti edge create config "$1" "$2" "$3"
+    echo "created config $1"
+  else
+    q ziti edge update config "$1" --data "$3"
+  fi
+}
+ensure_service() {   # name
+  if [[ -z "$(id_of services "$1")" ]]; then
+    q ziti edge create service "$1" --configs "$1-intercept,$1-host" --role-attributes "$1"
+    echo "created service $1"
+  else
+    q ziti edge update service "$1" --configs "$1-intercept,$1-host" --role-attributes "$1"
+  fi
+}
+ensure_service_policy() {   # name type service-roles identity-roles
+  if [[ -z "$(id_of service-policies "$1")" ]]; then
+    q ziti edge create service-policy "$1" "$2" --service-roles "$3" --identity-roles "$4"
+    echo "created service-policy $1"
+  else
+    q ziti edge update service-policy "$1" --service-roles "$3" --identity-roles "$4"
+  fi
+}
 {% for svc in ziti_services %}
-if ! exists configs "{{ svc.name }}-host"; then
-  ziti edge create config "{{ svc.name }}-host" host.v1 \
-    '{"protocol":"tcp","address":"{{ svc.host }}","port":{{ svc.port }}}'
-  ziti edge create config "{{ svc.name }}-intercept" intercept.v1 \
-    '{"protocols":["tcp"],"addresses":["{{ svc.name }}.ziti"],"portRanges":[{"low":{{ svc.port }},"high":{{ svc.port }}}]}'
-fi
-if ! exists services "{{ svc.name }}"; then
-  ziti edge create service "{{ svc.name }}" \
-    --configs "{{ svc.name }}-host,{{ svc.name }}-intercept" \
-    --role-attributes "{{ svc.name }}"
-fi
-if ! exists service-policies "{{ svc.name }}-bind"; then
-  ziti edge create service-policy "{{ svc.name }}-bind" Bind \
-    --service-roles "#{{ svc.name }}" --identity-roles "#router"
-fi
-if ! exists service-policies "{{ svc.name }}-dial"; then
-  ziti edge create service-policy "{{ svc.name }}-dial" Dial \
-    --service-roles "#{{ svc.name }}" \
-    --identity-roles "{{ svc.dial_roles | map('regex_replace', '^', '#') | join(',') }}"
-fi
+
+# {{ svc.name }}: {{ svc.host }}:{{ svc.port }}, hosted by {{ ziti_lab_router if svc.hosted_by == 'lab' else ziti_public_router }}
+ensure_config "{{ svc.name }}-intercept" intercept.v1 \
+  '{"protocols":["tcp"],"addresses":["{{ svc.host }}"],"portRanges":[{"low":{{ svc.port }},"high":{{ svc.port }}}]}'
+ensure_config "{{ svc.name }}-host" host.v1 \
+  '{"protocol":"tcp","address":"{{ svc.host }}","port":{{ svc.port }}}'
+ensure_service "{{ svc.name }}"
+ensure_service_policy "{{ svc.name }}-bind" Bind "@{{ svc.name }}" \
+  "@{{ ziti_lab_router if svc.hosted_by == 'lab' else ziti_public_router }}"
+ensure_service_policy "{{ svc.name }}-dial" Dial "@{{ svc.name }}" \
+  "{{ svc.dial_roles | map('regex_replace', '^', '#') | join(',') }}"
 {% endfor %}
 
-echo "Ziti access model bootstrapped."
+# --- Router policies -----------------------------------------------------------
+# Clients may connect only to the public router (tpi2-4's edge listener is
+# not reachable); every service may use every router for its path.
+ensure_erp() {   # name router-roles identity-roles
+  if [[ -z "$(id_of edge-router-policies "$1")" ]]; then
+    q ziti edge create edge-router-policy "$1" --edge-router-roles "$2" --identity-roles "$3"
+    echo "created edge-router-policy $1"
+  else
+    q ziti edge update edge-router-policy "$1" --edge-router-roles "$2" --identity-roles "$3"
+  fi
+}
+ensure_erp clients-public-router "#public" \
+  "{{ lab_roles | map('regex_replace', '^', '#') | join(',') }}"
+
+if [[ -z "$(id_of service-edge-router-policies all-services-all-routers)" ]]; then
+  q ziti edge create service-edge-router-policy all-services-all-routers \
+    --service-roles "#all" --edge-router-roles "#all"
+  echo "created service-edge-router-policy all-services-all-routers"
+fi
+
+echo "bootstrap complete"
