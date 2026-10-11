@@ -1,0 +1,9 @@
+run_id,timestamp_utc,phase,role,resource,operation,probe_type,expected,observed,result,latency_ms,detail
+2c154aea8a3c,2026-10-11T04:53:52+00:00,phase-1,remote-contractor,intranet-web,read,http,allow,allow,PASS,199,HTTP 200
+2c154aea8a3c,2026-10-11T04:54:02+00:00,phase-1,remote-contractor,file-service,connect,tcp,deny,deny,PASS,10002,timeout
+2c154aea8a3c,2026-10-11T04:54:02+00:00,phase-1,remote-contractor,postgres,read,exec,deny,error,ERROR,9,command not found: psql
+2c154aea8a3c,2026-10-11T04:54:02+00:00,phase-1,remote-contractor,postgres,write,exec,deny,error,ERROR,5,command not found: psql
+2c154aea8a3c,2026-10-11T04:54:12+00:00,phase-1,remote-contractor,legacy-service,connect,tcp,deny,deny,PASS,10003,timeout
+2c154aea8a3c,2026-10-11T04:54:22+00:00,phase-1,remote-contractor,aws-s3-data,read,exec,deny,deny,PASS,10019,timeout
+2c154aea8a3c,2026-10-11T04:54:24+00:00,phase-1,remote-contractor,aws-s3-data,write,exec,deny,deny,PASS,1589,exit 255: aws: [ERROR]: The config profile (remote-contractor) could not be found
+2c154aea8a3c,2026-10-11T04:54:34+00:00,phase-1,remote-contractor,aws-app,read,http,deny,deny,PASS,10002,connection failed: timed out

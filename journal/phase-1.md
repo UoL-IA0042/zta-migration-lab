@@ -1582,3 +1582,943 @@ ok: [tpi2-3] => {
 PLAY RECAP *****************************************************************************************************************************************************************
 tpi2-3                     : ok=21   changed=9    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0
 ```
+
+Now that the nodes are all setup properly for testing, run the ansible playbook for `openvpn`
+
+```
+$ LAB_VPN_ENDPOINT=$(curl -4 -s https://checkip.amazonaws.com) ansible-playbook -i inventory.yaml openvpn.yaml
+
+PLAY [Deploy the site-to-site hub on the AWS VPN gateway] ******************************************************************************************************************
+
+TASK [Require the hub's Elastic IP] ****************************************************************************************************************************************
+ok: [aws-vpn-gateway]
+
+TASK [Gather facts] ********************************************************************************************************************************************************
+ok: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : validate | Warn about deprecated openvpn_ci_build usage] ********************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : validate | Fail if both IPv4 and IPv6 tunnel networks are disabled] *********************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : validate | Initialize long client CNs list] *********************************************************************************************************
+ok: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : validate | Collect clients with CN exceeding 64 characters] *****************************************************************************************
+skipping: [aws-vpn-gateway] => (item=tpi2-4) 
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : validate | Assert CA CN length (strict mode)] *******************************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : validate | Assert server CN length (strict mode)] ***************************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : validate | Fail if any client CN too long (strict mode)] ********************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : validate | Warn if CA CN exceeds 64 chars (warning mode)] *******************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : validate | Warn if server CN exceeds 64 chars (warning mode)] ***************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : validate | Warn about long client CNs (warning mode)] ***********************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : Include vars for OpenVPN installation] **************************************************************************************************************
+ok: [aws-vpn-gateway] => (item=/Users/<user>/.ansible/roles/kyl191.openvpn/vars/os/Debian.yml)
+
+TASK [kyl191.openvpn : uninstall | Disable openvpn auto-start & start] *****************************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : uninstall | Wipe out config directory] **************************************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : uninstall | Remove openvpn logrotate config file] ***************************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : uninstall | Uninstall OpenVPN] **********************************************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : uninstall | Uninstall LDAP plugin] ******************************************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : uninstall | Terminate playbook] *********************************************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : install | Install EPEL for CentOS-like distros] *****************************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : install | Install EPEL for RHEL] ********************************************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : install | Gather the installed packages] ************************************************************************************************************
+ok: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : install | Ensure packages fact exists] **************************************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : install | Refresh apt cache] ************************************************************************************************************************
+changed: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : install | Install openvpn] **************************************************************************************************************************
+changed: [aws-vpn-gateway] => (item=openvpn)
+ok: [aws-vpn-gateway] => (item=openssl)
+
+TASK [kyl191.openvpn : install | Install LDAP plugin] **********************************************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : install | Install selinux dependencies (RedHat)] ****************************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : install | Install selinux dependencies (Debian/Ubuntu)] *********************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : install | Check if CRB repository is enabled] *******************************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : install | Enable CRB repository for CentOS 10-like distros] *****************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : install | Ensure group 'nogroup' is present] ********************************************************************************************************
+ok: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : server_keys | Create openvpn key directory] *********************************************************************************************************
+changed: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : server_keys | Copy openssl server/ca extensions] ****************************************************************************************************
+changed: [aws-vpn-gateway] => (item=openssl-server.ext)
+changed: [aws-vpn-gateway] => (item=openssl-ca.ext)
+
+TASK [kyl191.openvpn : server_keys | Copy CA key] **************************************************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : server_keys | Copy CA cert] *************************************************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : server_keys | Generate CA key] **********************************************************************************************************************
+changed: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : server_keys | Protect CA key] ***********************************************************************************************************************
+changed: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : server_keys | Sign CA key] **************************************************************************************************************************
+changed: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : server_keys | Generate server key] ******************************************************************************************************************
+changed: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : server_keys | Protect server key] *******************************************************************************************************************
+changed: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : server_keys | Sign server key] **********************************************************************************************************************
+changed: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : server_keys | Copy tls-auth key] ********************************************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : server_keys | Generate tls-auth key] ****************************************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : server_keys | Copy tls-crypt key] *******************************************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : server_keys | Generate tls-crypt key] ***************************************************************************************************************
+changed: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : server_keys | Copy pre-generated DH params] *********************************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : server_keys | Generate dh params] *******************************************************************************************************************
+changed: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : server_keys | Install ca.conf config file] **********************************************************************************************************
+changed: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : server_keys | Setup Certificate Revocation List] ****************************************************************************************************
+included: /Users/<user>/.ansible/roles/kyl191.openvpn/tasks/server_keys_crl.yml for aws-vpn-gateway
+
+TASK [kyl191.openvpn : server_keys_crl | Create initial certificate revocation list squence number] ************************************************************************
+changed: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : server_keys_crl | Install revocation script] ********************************************************************************************************
+changed: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : server_keys_crl | Check if certificate revocation list database exists] *****************************************************************************
+ok: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : server_keys_crl | Create certificate revocation list database if required] **************************************************************************
+changed: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : server_keys_crl | Set up certificate revocation list] ***********************************************************************************************
+changed: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : server_keys_crl | Install crl-cron script] **********************************************************************************************************
+changed: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : server_keys_crl | Install crl-cron service] *********************************************************************************************************
+changed: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : server_keys_crl | Install crl-cron systemd timer] ***************************************************************************************************
+changed: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : server_keys_crl | Activate systemd timer to check daily if the CRL needs to be renewed] *************************************************************
+changed: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : server_keys_crl | Fail if there's no systemd] *******************************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : Enable ipv4 forwarding] *****************************************************************************************************************************
+changed: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : Enable ipv6 forwarding] *****************************************************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : firewall | firewall | Fail on both firewalld & ufw] *************************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : firewall | firewall | Fail on no firewall detected] *************************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : firewall | firewall | Determine firewall backend] ***************************************************************************************************
+ok: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : firewall | firewall | Fail if IPv4 SNAT is needed but no default IPv4 route exists] *****************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : firewall | firewall | Fail if IPv6 SNAT is needed but no default IPv6 route exists] *****************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : firewall | firewall | Add port rules (iptables)] ****************************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : firewall | firewall | Add port rules (firewalld)] ***************************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : firewall | firewall | Add port rules (ufw)] *********************************************************************************************************
+included: /Users/<user>/.ansible/roles/kyl191.openvpn/tasks/firewall/ufw.yml for aws-vpn-gateway
+
+TASK [kyl191.openvpn : firewall | ufw | Start ufw service] *****************************************************************************************************************
+ok: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : firewall | ufw | Enable ufw] ************************************************************************************************************************
+changed: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : firewall | ufw | Enable forwarding] *****************************************************************************************************************
+changed: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : firewall | ufw | Allow incoming VPN connections] ****************************************************************************************************
+changed: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : firewall | ufw | Accept packets from VPN tunnel adaptor] ********************************************************************************************
+changed: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : firewall | ufw | Setup IPv4 SNAT rules] *************************************************************************************************************
+changed: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : firewall | ufw | Setup IPv6 SNAT rules] *************************************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : firewall | ufw | Setup IPv4 NAT with MASQUERADE] ****************************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : firewall | ufw | Setup IPv6 NAT with MASQUERADE] ****************************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : selinux | Allow OpenVPN port (semanage)] ************************************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : selinux | Check if legacy module is loaded] *********************************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : selinux | Remove legacy module] *********************************************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : selinux | Remove legacy module files] ***************************************************************************************************************
+skipping: [aws-vpn-gateway] => (item=my-openvpn-server.te) 
+skipping: [aws-vpn-gateway] => (item=my-openvpn-server.mod) 
+skipping: [aws-vpn-gateway] => (item=my-openvpn-server.pp) 
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : selinux | Warn about deprecated module method] ******************************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : selinux | Check if module was loaded] ***************************************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : selinux | Copy selinux type enforcement file] *******************************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : selinux | Make sure selinux policy build RPM is installed] ******************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : selinux | Install selinux-policy-targeted-extra for RHEL 10 and variants] ***************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : selinux | Build and install selinux policy] *********************************************************************************************************
+skipping: [aws-vpn-gateway] => (item=checkmodule -M -m -o my-openvpn-server.mod my-openvpn-server.te) 
+skipping: [aws-vpn-gateway] => (item=semodule_package -o my-openvpn-server.pp -m my-openvpn-server.mod) 
+skipping: [aws-vpn-gateway] => (item=semodule -i my-openvpn-server.pp) 
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : cert_sync_detection | Get existing certs] ***********************************************************************************************************
+ok: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : cert_sync_detection | Create list of existing client with existing certs] ***************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : cert_sync_detection | Create list of cert to revoke] ************************************************************************************************
+ok: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : cert_sync_detection | Debug: Certs to revoke (skipped if none)] *************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : client_keys | Create openvpn ovpn file directory] ***************************************************************************************************
+ok: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : client_keys | Copy openssl client extensions] *******************************************************************************************************
+changed: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : client_keys | Generate client key] ******************************************************************************************************************
+changed: [aws-vpn-gateway] => (item=tpi2-4)
+
+TASK [kyl191.openvpn : client_keys | Protect client keys] ******************************************************************************************************************
+changed: [aws-vpn-gateway] => (item=tpi2-4)
+
+TASK [kyl191.openvpn : client_keys | Sign client key] **********************************************************************************************************************
+changed: [aws-vpn-gateway] => (item=tpi2-4)
+
+TASK [kyl191.openvpn : client_keys | Register server ca key] ***************************************************************************************************************
+ok: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : client_keys | Register tls-auth key] ****************************************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : client_keys | Register tls-crypt key] ***************************************************************************************************************
+ok: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : client_keys | Register client certs] ****************************************************************************************************************
+ok: [aws-vpn-gateway] => (item=tpi2-4)
+
+TASK [kyl191.openvpn : client_keys | Register client keys] *****************************************************************************************************************
+ok: [aws-vpn-gateway] => (item=tpi2-4)
+
+TASK [kyl191.openvpn : client_keys | Generate client config] ***************************************************************************************************************
+changed: [aws-vpn-gateway] => (item=(censored due to no_log))
+
+TASK [kyl191.openvpn : client_keys | Fetch client config] ******************************************************************************************************************
+changed: [aws-vpn-gateway] => (item=tpi2-4)
+
+TASK [kyl191.openvpn : revocation | Remove client config] ******************************************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : revocation | Revoke certificates] *******************************************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : revocation | Remove client key] *********************************************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : revocation | Remove client csr] *********************************************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : revocation | Remove client cert] ********************************************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : config | Create openvpn config file] ****************************************************************************************************************
+changed: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : config | Copy up script if defined] *****************************************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : config | Copy down script if defined] ***************************************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : config | Copy client-connect script if defined] *****************************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : config | Copy client-disconnect script if defined] **************************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : config | Ensure auth folder exist in openvpn dir] ***************************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : config | Delete auth folder in openvpn dir] *********************************************************************************************************
+ok: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : config | Install LDAP config] ***********************************************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : config | Create log directory] **********************************************************************************************************************
+changed: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : config | Copy openvpn logrotate config file] ********************************************************************************************************
+changed: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : config | Create client config directory] ************************************************************************************************************
+changed: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : config | Create client configs] *********************************************************************************************************************
+changed: [aws-vpn-gateway] => (item={'key': 'tpi2-4', 'value': ['iroute 10.0.0.0 255.255.255.0']})
+
+TASK [kyl191.openvpn : config | List client config directory] **************************************************************************************************************
+ok: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : config | Delete undeclared configs in client config directory] **************************************************************************************
+skipping: [aws-vpn-gateway] => (item=tpi2-4) 
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : config | Delete client config directory] ************************************************************************************************************
+skipping: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : config | Create openvpn service override directory] *************************************************************************************************
+changed: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : config | Copy openvpn service override file] ********************************************************************************************************
+changed: [aws-vpn-gateway]
+
+TASK [kyl191.openvpn : config | Setup openvpn auto-start & start] **********************************************************************************************************
+changed: [aws-vpn-gateway]
+
+RUNNING HANDLER [kyl191.openvpn : Restart openvpn] *************************************************************************************************************************
+changed: [aws-vpn-gateway]
+
+RUNNING HANDLER [kyl191.openvpn : Restart ufw] *****************************************************************************************************************************
+changed: [aws-vpn-gateway]
+
+PLAY [Deploy perimeter-baseline OpenVPN server] ****************************************************************************************************************************
+
+TASK [Gathering Facts] *****************************************************************************************************************************************************
+ok: [tpi2-4]
+
+TASK [Require the public endpoint remote workers dial] *********************************************************************************************************************
+ok: [tpi2-4]
+
+TASK [kyl191.openvpn : validate | Warn about deprecated openvpn_ci_build usage] ********************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : validate | Fail if both IPv4 and IPv6 tunnel networks are disabled] *********************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : validate | Initialize long client CNs list] *********************************************************************************************************
+ok: [tpi2-4]
+
+TASK [kyl191.openvpn : validate | Collect clients with CN exceeding 64 characters] *****************************************************************************************
+skipping: [tpi2-4] => (item=remote-admin) 
+skipping: [tpi2-4] => (item=remote-developer) 
+skipping: [tpi2-4] => (item=remote-analyst) 
+skipping: [tpi2-4] => (item=remote-contractor) 
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : validate | Assert CA CN length (strict mode)] *******************************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : validate | Assert server CN length (strict mode)] ***************************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : validate | Fail if any client CN too long (strict mode)] ********************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : validate | Warn if CA CN exceeds 64 chars (warning mode)] *******************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : validate | Warn if server CN exceeds 64 chars (warning mode)] ***************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : validate | Warn about long client CNs (warning mode)] ***********************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : Include vars for OpenVPN installation] **************************************************************************************************************
+ok: [tpi2-4] => (item=/Users/<user>/.ansible/roles/kyl191.openvpn/vars/os/Debian.yml)
+
+TASK [kyl191.openvpn : uninstall | Disable openvpn auto-start & start] *****************************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : uninstall | Wipe out config directory] **************************************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : uninstall | Remove openvpn logrotate config file] ***************************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : uninstall | Uninstall OpenVPN] **********************************************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : uninstall | Uninstall LDAP plugin] ******************************************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : uninstall | Terminate playbook] *********************************************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : install | Install EPEL for CentOS-like distros] *****************************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : install | Install EPEL for RHEL] ********************************************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : install | Gather the installed packages] ************************************************************************************************************
+ok: [tpi2-4]
+
+TASK [kyl191.openvpn : install | Ensure packages fact exists] **************************************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : install | Refresh apt cache] ************************************************************************************************************************
+changed: [tpi2-4]
+
+TASK [kyl191.openvpn : install | Install openvpn] **************************************************************************************************************************
+changed: [tpi2-4] => (item=openvpn)
+ok: [tpi2-4] => (item=openssl)
+
+TASK [kyl191.openvpn : install | Install LDAP plugin] **********************************************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : install | Install selinux dependencies (RedHat)] ****************************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : install | Install selinux dependencies (Debian/Ubuntu)] *********************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : install | Check if CRB repository is enabled] *******************************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : install | Enable CRB repository for CentOS 10-like distros] *****************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : install | Ensure group 'nogroup' is present] ********************************************************************************************************
+ok: [tpi2-4]
+
+TASK [kyl191.openvpn : server_keys | Create openvpn key directory] *********************************************************************************************************
+changed: [tpi2-4]
+
+TASK [kyl191.openvpn : server_keys | Copy openssl server/ca extensions] ****************************************************************************************************
+changed: [tpi2-4] => (item=openssl-server.ext)
+changed: [tpi2-4] => (item=openssl-ca.ext)
+
+TASK [kyl191.openvpn : server_keys | Copy CA key] **************************************************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : server_keys | Copy CA cert] *************************************************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : server_keys | Generate CA key] **********************************************************************************************************************
+changed: [tpi2-4]
+
+TASK [kyl191.openvpn : server_keys | Protect CA key] ***********************************************************************************************************************
+changed: [tpi2-4]
+
+TASK [kyl191.openvpn : server_keys | Sign CA key] **************************************************************************************************************************
+changed: [tpi2-4]
+
+TASK [kyl191.openvpn : server_keys | Generate server key] ******************************************************************************************************************
+changed: [tpi2-4]
+
+TASK [kyl191.openvpn : server_keys | Protect server key] *******************************************************************************************************************
+changed: [tpi2-4]
+
+TASK [kyl191.openvpn : server_keys | Sign server key] **********************************************************************************************************************
+changed: [tpi2-4]
+
+TASK [kyl191.openvpn : server_keys | Copy tls-auth key] ********************************************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : server_keys | Generate tls-auth key] ****************************************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : server_keys | Copy tls-crypt key] *******************************************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : server_keys | Generate tls-crypt key] ***************************************************************************************************************
+changed: [tpi2-4]
+
+TASK [kyl191.openvpn : server_keys | Copy pre-generated DH params] *********************************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : server_keys | Generate dh params] *******************************************************************************************************************
+changed: [tpi2-4]
+
+TASK [kyl191.openvpn : server_keys | Install ca.conf config file] **********************************************************************************************************
+changed: [tpi2-4]
+
+TASK [kyl191.openvpn : server_keys | Setup Certificate Revocation List] ****************************************************************************************************
+included: /Users/<user>/.ansible/roles/kyl191.openvpn/tasks/server_keys_crl.yml for tpi2-4
+
+TASK [kyl191.openvpn : server_keys_crl | Create initial certificate revocation list squence number] ************************************************************************
+changed: [tpi2-4]
+
+TASK [kyl191.openvpn : server_keys_crl | Install revocation script] ********************************************************************************************************
+changed: [tpi2-4]
+
+TASK [kyl191.openvpn : server_keys_crl | Check if certificate revocation list database exists] *****************************************************************************
+ok: [tpi2-4]
+
+TASK [kyl191.openvpn : server_keys_crl | Create certificate revocation list database if required] **************************************************************************
+changed: [tpi2-4]
+
+TASK [kyl191.openvpn : server_keys_crl | Set up certificate revocation list] ***********************************************************************************************
+changed: [tpi2-4]
+
+TASK [kyl191.openvpn : server_keys_crl | Install crl-cron script] **********************************************************************************************************
+changed: [tpi2-4]
+
+TASK [kyl191.openvpn : server_keys_crl | Install crl-cron service] *********************************************************************************************************
+changed: [tpi2-4]
+
+TASK [kyl191.openvpn : server_keys_crl | Install crl-cron systemd timer] ***************************************************************************************************
+changed: [tpi2-4]
+
+TASK [kyl191.openvpn : server_keys_crl | Activate systemd timer to check daily if the CRL needs to be renewed] *************************************************************
+changed: [tpi2-4]
+
+TASK [kyl191.openvpn : server_keys_crl | Fail if there's no systemd] *******************************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : Enable ipv4 forwarding] *****************************************************************************************************************************
+changed: [tpi2-4]
+
+TASK [kyl191.openvpn : Enable ipv6 forwarding] *****************************************************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : firewall | firewall | Fail on both firewalld & ufw] *************************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : firewall | firewall | Fail on no firewall detected] *************************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : firewall | firewall | Determine firewall backend] ***************************************************************************************************
+ok: [tpi2-4]
+
+TASK [kyl191.openvpn : firewall | firewall | Fail if IPv4 SNAT is needed but no default IPv4 route exists] *****************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : firewall | firewall | Fail if IPv6 SNAT is needed but no default IPv6 route exists] *****************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : firewall | firewall | Add port rules (iptables)] ****************************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : firewall | firewall | Add port rules (firewalld)] ***************************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : firewall | firewall | Add port rules (ufw)] *********************************************************************************************************
+included: /Users/<user>/.ansible/roles/kyl191.openvpn/tasks/firewall/ufw.yml for tpi2-4
+
+TASK [kyl191.openvpn : firewall | ufw | Start ufw service] *****************************************************************************************************************
+ok: [tpi2-4]
+
+TASK [kyl191.openvpn : firewall | ufw | Enable ufw] ************************************************************************************************************************
+changed: [tpi2-4]
+
+TASK [kyl191.openvpn : firewall | ufw | Enable forwarding] *****************************************************************************************************************
+changed: [tpi2-4]
+
+TASK [kyl191.openvpn : firewall | ufw | Allow incoming VPN connections] ****************************************************************************************************
+changed: [tpi2-4]
+
+TASK [kyl191.openvpn : firewall | ufw | Accept packets from VPN tunnel adaptor] ********************************************************************************************
+changed: [tpi2-4]
+
+TASK [kyl191.openvpn : firewall | ufw | Setup IPv4 SNAT rules] *************************************************************************************************************
+changed: [tpi2-4]
+
+TASK [kyl191.openvpn : firewall | ufw | Setup IPv6 SNAT rules] *************************************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : firewall | ufw | Setup IPv4 NAT with MASQUERADE] ****************************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : firewall | ufw | Setup IPv6 NAT with MASQUERADE] ****************************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : selinux | Allow OpenVPN port (semanage)] ************************************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : selinux | Check if legacy module is loaded] *********************************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : selinux | Remove legacy module] *********************************************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : selinux | Remove legacy module files] ***************************************************************************************************************
+skipping: [tpi2-4] => (item=my-openvpn-server.te) 
+skipping: [tpi2-4] => (item=my-openvpn-server.mod) 
+skipping: [tpi2-4] => (item=my-openvpn-server.pp) 
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : selinux | Warn about deprecated module method] ******************************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : selinux | Check if module was loaded] ***************************************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : selinux | Copy selinux type enforcement file] *******************************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : selinux | Make sure selinux policy build RPM is installed] ******************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : selinux | Install selinux-policy-targeted-extra for RHEL 10 and variants] ***************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : selinux | Build and install selinux policy] *********************************************************************************************************
+skipping: [tpi2-4] => (item=checkmodule -M -m -o my-openvpn-server.mod my-openvpn-server.te) 
+skipping: [tpi2-4] => (item=semodule_package -o my-openvpn-server.pp -m my-openvpn-server.mod) 
+skipping: [tpi2-4] => (item=semodule -i my-openvpn-server.pp) 
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : cert_sync_detection | Get existing certs] ***********************************************************************************************************
+ok: [tpi2-4]
+
+TASK [kyl191.openvpn : cert_sync_detection | Create list of existing client with existing certs] ***************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : cert_sync_detection | Create list of cert to revoke] ************************************************************************************************
+ok: [tpi2-4]
+
+TASK [kyl191.openvpn : cert_sync_detection | Debug: Certs to revoke (skipped if none)] *************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : client_keys | Create openvpn ovpn file directory] ***************************************************************************************************
+ok: [tpi2-4]
+
+TASK [kyl191.openvpn : client_keys | Copy openssl client extensions] *******************************************************************************************************
+changed: [tpi2-4]
+
+TASK [kyl191.openvpn : client_keys | Generate client key] ******************************************************************************************************************
+changed: [tpi2-4] => (item=remote-admin)
+changed: [tpi2-4] => (item=remote-developer)
+changed: [tpi2-4] => (item=remote-analyst)
+changed: [tpi2-4] => (item=remote-contractor)
+
+TASK [kyl191.openvpn : client_keys | Protect client keys] ******************************************************************************************************************
+changed: [tpi2-4] => (item=remote-admin)
+changed: [tpi2-4] => (item=remote-developer)
+changed: [tpi2-4] => (item=remote-analyst)
+changed: [tpi2-4] => (item=remote-contractor)
+
+TASK [kyl191.openvpn : client_keys | Sign client key] **********************************************************************************************************************
+changed: [tpi2-4] => (item=remote-admin)
+changed: [tpi2-4] => (item=remote-developer)
+changed: [tpi2-4] => (item=remote-analyst)
+changed: [tpi2-4] => (item=remote-contractor)
+
+TASK [kyl191.openvpn : client_keys | Register server ca key] ***************************************************************************************************************
+ok: [tpi2-4]
+
+TASK [kyl191.openvpn : client_keys | Register tls-auth key] ****************************************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : client_keys | Register tls-crypt key] ***************************************************************************************************************
+ok: [tpi2-4]
+
+TASK [kyl191.openvpn : client_keys | Register client certs] ****************************************************************************************************************
+ok: [tpi2-4] => (item=remote-admin)
+ok: [tpi2-4] => (item=remote-developer)
+ok: [tpi2-4] => (item=remote-analyst)
+ok: [tpi2-4] => (item=remote-contractor)
+
+TASK [kyl191.openvpn : client_keys | Register client keys] *****************************************************************************************************************
+ok: [tpi2-4] => (item=remote-admin)
+ok: [tpi2-4] => (item=remote-developer)
+ok: [tpi2-4] => (item=remote-analyst)
+ok: [tpi2-4] => (item=remote-contractor)
+
+TASK [kyl191.openvpn : client_keys | Generate client config] ***************************************************************************************************************
+changed: [tpi2-4] => (item=(censored due to no_log))
+changed: [tpi2-4] => (item=(censored due to no_log))
+changed: [tpi2-4] => (item=(censored due to no_log))
+changed: [tpi2-4] => (item=(censored due to no_log))
+
+TASK [kyl191.openvpn : client_keys | Fetch client config] ******************************************************************************************************************
+changed: [tpi2-4] => (item=remote-admin)
+changed: [tpi2-4] => (item=remote-developer)
+changed: [tpi2-4] => (item=remote-analyst)
+changed: [tpi2-4] => (item=remote-contractor)
+
+TASK [kyl191.openvpn : revocation | Remove client config] ******************************************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : revocation | Revoke certificates] *******************************************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : revocation | Remove client key] *********************************************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : revocation | Remove client csr] *********************************************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : revocation | Remove client cert] ********************************************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : config | Create openvpn config file] ****************************************************************************************************************
+changed: [tpi2-4]
+
+TASK [kyl191.openvpn : config | Copy up script if defined] *****************************************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : config | Copy down script if defined] ***************************************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : config | Copy client-connect script if defined] *****************************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : config | Copy client-disconnect script if defined] **************************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : config | Ensure auth folder exist in openvpn dir] ***************************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : config | Delete auth folder in openvpn dir] *********************************************************************************************************
+ok: [tpi2-4]
+
+TASK [kyl191.openvpn : config | Install LDAP config] ***********************************************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : config | Create log directory] **********************************************************************************************************************
+changed: [tpi2-4]
+
+TASK [kyl191.openvpn : config | Copy openvpn logrotate config file] ********************************************************************************************************
+changed: [tpi2-4]
+
+TASK [kyl191.openvpn : config | Create client config directory] ************************************************************************************************************
+changed: [tpi2-4]
+
+TASK [kyl191.openvpn : config | Create client configs] *********************************************************************************************************************
+changed: [tpi2-4] => (item={'key': 'remote-admin', 'value': ['ifconfig-push 10.9.0.17 255.255.255.0']})
+changed: [tpi2-4] => (item={'key': 'remote-developer', 'value': ['ifconfig-push 10.9.0.18 255.255.255.0']})
+changed: [tpi2-4] => (item={'key': 'remote-analyst', 'value': ['ifconfig-push 10.9.0.19 255.255.255.0']})
+changed: [tpi2-4] => (item={'key': 'remote-contractor', 'value': ['ifconfig-push 10.9.0.33 255.255.255.0']})
+
+TASK [kyl191.openvpn : config | List client config directory] **************************************************************************************************************
+ok: [tpi2-4]
+
+TASK [kyl191.openvpn : config | Delete undeclared configs in client config directory] **************************************************************************************
+skipping: [tpi2-4] => (item=remote-admin) 
+skipping: [tpi2-4] => (item=remote-analyst) 
+skipping: [tpi2-4] => (item=remote-contractor) 
+skipping: [tpi2-4] => (item=remote-developer) 
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : config | Delete client config directory] ************************************************************************************************************
+skipping: [tpi2-4]
+
+TASK [kyl191.openvpn : config | Create openvpn service override directory] *************************************************************************************************
+changed: [tpi2-4]
+
+TASK [kyl191.openvpn : config | Copy openvpn service override file] ********************************************************************************************************
+changed: [tpi2-4]
+
+TASK [kyl191.openvpn : config | Setup openvpn auto-start & start] **********************************************************************************************************
+changed: [tpi2-4]
+
+RUNNING HANDLER [kyl191.openvpn : Restart openvpn] *************************************************************************************************************************
+changed: [tpi2-4]
+
+RUNNING HANDLER [kyl191.openvpn : Restart ufw] *****************************************************************************************************************************
+changed: [tpi2-4]
+
+TASK [Perimeter ruleset | allow listed group traffic from the tunnel] ******************************************************************************************************
+changed: [tpi2-4] => (item=staff -> on-prem LAN)
+changed: [tpi2-4] => (item=staff -> AWS VPC)
+changed: [tpi2-4] => (item=contractor -> intranet-web)
+changed: [tpi2-4] => (item=contractor -> postgres (db denies))
+changed: [tpi2-4] => (item=contractor -> lab DNS)
+changed: [tpi2-4] => (item=contractor -> lab DNS (tcp))
+
+TASK [Perimeter ruleset | deny all other routed traffic] *******************************************************************************************************************
+changed: [tpi2-4]
+
+TASK [Host firewall | allow SSH and monitoring from the lab LAN] ***********************************************************************************************************
+changed: [tpi2-4]
+
+TASK [Host firewall | deny all other inbound (1194/udp and tun0 stay open)] ************************************************************************************************
+changed: [tpi2-4]
+
+TASK [Record deployed OpenVPN version (data collection)] *******************************************************************************************************************
+ok: [tpi2-4]
+
+TASK [Record the live ruleset (Phase 3 translation input)] *****************************************************************************************************************
+ok: [tpi2-4]
+
+TASK [Show version and ruleset for the work journal] ***********************************************************************************************************************
+ok: [tpi2-4] => {
+    "msg": [
+        "OpenVPN 2.6.19 aarch64-unknown-linux-gnu [SSL (OpenSSL)] [LZO] [LZ4] [EPOLL] [PKCS11] [MH/PKTINFO] [AEAD] [DCO]",
+        "Status: active",
+        "Logging: on (low)",
+        "Default: deny (incoming), allow (outgoing), deny (routed)",
+        "New profiles: skip",
+        "",
+        "To                         Action      From",
+        "--                         ------      ----",
+        "1194/udp                   ALLOW IN    Anywhere                  ",
+        "Anywhere on tun0           ALLOW IN    Anywhere                  ",
+        "Anywhere                   ALLOW IN    10.0.0.0/24                # lab LAN -> tpi2-4 (ssh, node_exporter)",
+        "1194/udp (v6)              ALLOW IN    Anywhere (v6)             ",
+        "Anywhere (v6) on tun0      ALLOW IN    Anywhere (v6)             ",
+        "",
+        "10.0.0.0/24                ALLOW FWD   10.9.0.16/28 on tun0       # staff -> on-prem LAN",
+        "10.100.0.0/16              ALLOW FWD   10.9.0.16/28 on tun0       # staff -> AWS VPC",
+        "10.0.0.73 8080/tcp         ALLOW FWD   10.9.0.32/28 on tun0       # contractor -> intranet-web",
+        "10.0.0.73 5432/tcp         ALLOW FWD   10.9.0.32/28 on tun0       # contractor -> postgres (db denies)",
+        "10.0.0.153 53/udp          ALLOW FWD   10.9.0.32/28 on tun0       # contractor -> lab DNS",
+        "10.0.0.153 53/tcp          ALLOW FWD   10.9.0.32/28 on tun0       # contractor -> lab DNS (tcp)"
+    ]
+}
+
+PLAY [Connect tpi2-4 to the AWS site-to-site hub] **************************************************************************************************************************
+
+TASK [Install the site-to-site profile fetched from the hub] ***************************************************************************************************************
+changed: [tpi2-4]
+
+TASK [Enable and start the site-to-site tunnel] ****************************************************************************************************************************
+changed: [tpi2-4]
+
+TASK [Apply a changed profile now] *****************************************************************************************************************************************
+
+RUNNING HANDLER [Restart site-to-site tunnel] ******************************************************************************************************************************
+changed: [tpi2-4]
+
+TASK [Wait for the AWS VPC route through the tunnel] ***********************************************************************************************************************
+FAILED - RETRYING: [tpi2-4]: Wait for the AWS VPC route through the tunnel (11 retries left).
+ok: [tpi2-4]
+
+TASK [Verify aws-app answers through the tunnel] ***************************************************************************************************************************
+ok: [tpi2-4]
+
+PLAY RECAP *****************************************************************************************************************************************************************
+aws-vpn-gateway            : ok=63   changed=43   unreachable=0    failed=0    skipped=65   rescued=0    ignored=0   
+tpi2-4                     : ok=75   changed=50   unreachable=0    failed=0    skipped=65   rescued=0    ignored=0
+```
+
+## 2026-10-11 21:30-22:00 | phase-1 | test-matrix | testing
+First Phase 1 access-matrix run for `remote-contractor`
+(run `2c154aea8a3c`, `results/phase-1_remote-contractor_20261011T045434Z_2c154aea8a3c.csv`)
+is INVALID and excluded from analysis. The CSV is kept as data.
+
+The network-level results were as expected: intranet-web allowed; file-service,
+legacy-service and aws-app denied by timeout (the perimeter ruleset dropping
+routed traffic). However, the probing machine was incomplete:
+- `psql` was not on PATH (Homebrew `libpq` is keg-only), so both postgres rows
+  were ERROR.
+- No AWS profile existed for the role. The S3 write row recorded "deny"
+  because the CLI could not find the profile, and the S3 read row recorded
+  "deny" on a timeout. Neither reflects an IAM decision, so both are false passes.
+
+Root cause in the instrument: `exec` probes counted any nonzero exit as deny,
+so a misconfigured probing machine scores deny rows as passes. Fixed in the
+harness (see the coding entry below). The contractor run will be repeated after
+setting up the probe environment (psql on PATH, PGPASSWORD, AWS profiles per
+role, LAB_DATA_BUCKET).
+
+## 2026-10-11 22:00-22:15 | phase-1 | test-matrix | coding
+Hardened the access-matrix harness before recording Phase 1 results. `exec`
+probes now need a deny signature (`deny_pattern`): a nonzero exit counts as a
+deny only if its output shows the control refusing (`AccessDenied` for S3;
+`permission denied for database|table` or a network-level failure for
+postgres). Anything else is ERROR. Added `deny_on_timeout` (false for S3,
+which is reached over the internet, not the tunnel) and per-probe `timeout`
+(30 s for the aws CLI cold start). Switched the S3 read probe from
+head-object to get-object, because HEAD responses carry no error code and
+cannot distinguish AccessDenied from an invalid key. Added `psql -w` so a
+missing password errors instead of prompting. Added requirements.txt. PyYAML
+version installed: 6.0.3.
