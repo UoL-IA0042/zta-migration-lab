@@ -66,3 +66,23 @@ variable "lab_roles" {
   type        = list(string)
   default     = ["remote-admin", "remote-developer", "remote-analyst", "remote-contractor"]
 }
+
+# Phase 2 (OpenZiti), used by phase2-openziti.tf and the hub security
+# group in main.tf. docs/phase-2-openziti.md.
+variable "enable_openziti" {
+  description = "Create the Phase 2 OpenZiti edge host (subnet, route table, security group, instance, Elastic IP)"
+  type        = bool
+  default     = false
+}
+
+variable "ziti_edge_instance_type" {
+  description = "Edge host instance type (Graviton: controller + public router + proxy)"
+  type        = string
+  default     = "t4g.small"
+}
+
+variable "lab_idp_port" {
+  description = "Keycloak HTTP port on tpi2-2, reached by the IdP proxy through the tunnel"
+  type        = number
+  default     = 8080
+}

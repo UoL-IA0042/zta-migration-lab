@@ -9,23 +9,8 @@
 # The lab only dials out to it; the IdP proxy reaches Keycloak through the
 # Phase 1 site-to-site tunnel (edge subnet -> hub -> tpi2-4 -> 10.0.0.72).
 
-variable "enable_openziti" {
-  description = "Create the Phase 2 OpenZiti edge host (subnet, route table, security group, instance, Elastic IP)"
-  type        = bool
-  default     = false
-}
-
-variable "ziti_edge_instance_type" {
-  description = "Edge host instance type (Graviton: controller + public router + proxy)"
-  type        = string
-  default     = "t4g.small"
-}
-
-variable "lab_idp_port" {
-  description = "Keycloak HTTP port on tpi2-2, reached by the IdP proxy through the tunnel"
-  type        = number
-  default     = 8080
-}
+# Inputs (enable_openziti, ziti_edge_instance_type, lab_idp_port) are in
+# variables.tf with the rest.
 
 locals {
   # 10.100.1.0/24; also referenced by the hub security group (main.tf)
