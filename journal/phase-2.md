@@ -68,5 +68,116 @@ document from the Mac and checks the issuer. The inventory gains the
 groups `edge_host` (address from `LAB_EDGE_IP`) and `lab_gateway`
 (tpi2-4).
 
-## 2026-10-11 09:55-10:20 | phase-2 | openziti | deployment
+## 2026-10-11 09:55-11:00 | phase-2 | openziti | deployment
 Caddy image digest: `sha256:f2a1290d0463aad60660d4ec134943f183ee2a5f6c3eb7bf32dd984f2f020772`
+
+```
+TASK [Show image digests] **************************************************************************************************************************************************
+ok: [ziti-edge] => {
+    "digests.stdout_lines": [
+        "openziti/ziti-controller@sha256:834cb8a784b55716a56c0aab15d8809bc553834a534dbb8986d0711cb5c34dfc",
+        "openziti/ziti-router@sha256:540e5450f2ecd72cdc0db94bb7d969814f826e19d3bd4bbde192483c38bb5423"
+    ]
+}
+
+TASK [Show image digest] ***************************************************************************************************************************************************
+ok: [tpi2-4] => {
+    "lab_digest.stdout": "openziti/ziti-router@sha256:540e5450f2ecd72cdc0db94bb7d969814f826e19d3bd4bbde192483c38bb5423"
+}
+
+TASK [Show access-model changes] *******************************************************************************************************************************************
+ok: [ziti-edge] => {
+    "model.stdout_lines": [
+        "created edge-router aws-edge",
+        "created edge-router lab-router",
+        "created ext-jwt-signer keycloak",
+        "created auth-policy keycloak-only",
+        "created identity remote-admin",
+        "created identity remote-developer",
+        "created identity remote-analyst",
+        "created identity remote-contractor",
+        "created config intranet-web-intercept",
+        "created config intranet-web-host",
+        "created service intranet-web",
+        "created service-policy intranet-web-bind",
+        "created service-policy intranet-web-dial",
+        "created config file-service-intercept",
+        "created config file-service-host",
+        "created service file-service",
+        "created service-policy file-service-bind",
+        "created service-policy file-service-dial",
+        "created config postgres-intercept",
+        "created config postgres-host",
+        "created service postgres",
+        "created service-policy postgres-bind",
+        "created service-policy postgres-dial",
+        "created config legacy-service-intercept",
+        "created config legacy-service-host",
+        "created service legacy-service",
+        "created service-policy legacy-service-bind",
+        "created service-policy legacy-service-dial",
+        "created config aws-app-intercept",
+        "created config aws-app-host",
+        "created service aws-app",
+        "created service-policy aws-app-bind",
+        "created service-policy aws-app-dial",
+        "created config perf-iperf3-intercept",
+        "created config perf-iperf3-host",
+        "created service perf-iperf3",
+        "created service-policy perf-iperf3-bind",
+        "created service-policy perf-iperf3-dial",
+        "created edge-router-policy clients-public-router",
+        "created service-edge-router-policy all-services-all-routers",
+        "bootstrap complete"
+    ]
+}
+
+TASK [Overlay state] *******************************************************************************************************************************************************
+ok: [ziti-edge] => {
+    "msg": {
+        "links": [
+            {
+                "dst": "aws-edge",
+                "src": "lab-router",
+                "state": "Connected"
+            }
+        ],
+        "routers": [
+            {
+                "isOnline": true,
+                "name": "lab-router"
+            },
+            {
+                "isOnline": true,
+                "name": "aws-edge"
+            }
+        ],
+        "terminators": [
+            {
+                "router": "lab-router",
+                "service": "intranet-web"
+            },
+            {
+                "router": "lab-router",
+                "service": "postgres"
+            },
+            {
+                "router": "lab-router",
+                "service": "file-service"
+            },
+            {
+                "router": "lab-router",
+                "service": "perf-iperf3"
+            },
+            {
+                "router": "aws-edge",
+                "service": "aws-app"
+            },
+            {
+                "router": "lab-router",
+                "service": "legacy-service"
+            }
+        ]
+    }
+}
+```
