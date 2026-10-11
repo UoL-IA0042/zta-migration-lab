@@ -20,3 +20,21 @@ Protocol (methodology: performance-variability mitigation):
 - Repeat per path: `vpn`, `openziti`, `netbird`.
 - Failed reps record NaN with detail rather than being dropped.
 - Commit `results/*.csv`; report mean and standard deviation.
+
+Phase 2, OpenZiti (logged in as `remote-admin`, the only role that may
+dial `perf-iperf3`; same Mac, hotspot and protocol as Phase 1, including
+the control ping before each run). The Phase 1 baseline is not repeated:
+the substrate is unchanged.
+
+```bash
+./run_perf.py --phase phase-2-openziti --path openziti \
+    --iperf-server 10.0.0.73 --http-url http://10.0.0.73:8080/
+./run_perf.py --phase phase-2-openziti --path openziti-aws \
+    --http-url http://10.100.10.10:8080/
+```
+
+Path note for the analysis: `vpn` carried client traffic Mac -> tpi2-4
+(home, over the ISP gateway); `openziti` carries it Mac -> public router
+(AWS) -> link -> tpi2-4, and `openziti-aws` Mac -> public router ->
+aws-app inside the VPC (no site-to-site hop). The routes differ, not
+only the access technology.

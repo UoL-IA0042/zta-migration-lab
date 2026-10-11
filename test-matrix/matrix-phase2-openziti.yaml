@@ -1,0 +1,125 @@
+# Access-control test matrix — Phase 2, OpenZiti (docs/phase-2-openziti.md).
+#
+# One file per phase, kept in git: the diff between phase matrices IS the
+# access-model change the migration makes, and belongs in the analysis.
+# Resources are identical to matrix.yaml (the overlay intercepts the
+# Phase 1 addresses); only the phase label and the expectations differ.
+#
+# Every role must list BOTH allow and deny expectations: negative cases
+# are the direct measure of least privilege.
+---
+phase: phase-2-openziti
+defaults:
+  timeout: 10
+
+resources:
+  intranet-web:
+    type: http
+    url: http://10.0.0.73:8080
+    operations:
+      read: {method: GET, path: /}
+
+  file-service:
+    type: tcp
+    host: 10.0.0.73
+    port: 445
+    operations:
+      connect: {}
+
+  postgres:
+    type: exec
+    # A deny is the database refusing (CONNECT or table privileges) or, in
+    # ZTNA phases, the network dropping the connection. Anything else (no
+    # psql, wrong or missing password) is an ERROR, not a deny.
+    deny_pattern: >-
+      permission denied for (database|table|relation|sequence)|timeout expired|Connection refused|No route to host|Network is unreachable
+    deny_on_timeout: true
+    operations:
+      # Password from ~/.pgpass (mkpgpass.py) or PGPASSWORD on the probing
+      # machine; -w never prompts, so a missing password errors instead of hanging.
+      read:
+        command: >-
+          psql -w -h 10.0.0.73 -U {role} -d labdb -tAc 'SELECT 1'
+      write:
+        command: >-
+          psql -w -h 10.0.0.73 -U {role} -d labdb -tAc
+          'INSERT INTO probe_writes (role) VALUES (current_user)'
+
+  legacy-service:
+    type: tcp
+    host: 10.0.0.73
+    port: 8023
+    operations:
+      connect: {}
+
+  aws-s3-data:
+    type: exec
+    # A deny is IAM refusing the request. S3 is reached over the internet,
+    # not the tunnel, so a timeout is never a policy decision; a missing
+    # profile or invalid key does not match and is an ERROR.
+    deny_pattern: 'AccessDenied'
+    deny_on_timeout: false
+    timeout: 30          # aws CLI cold start can exceed the 10 s default
+    operations:
+      # AWS credentials for the role supplied via profile on the probing machine.
+      # LAB_DATA_BUCKET = `terraform output -raw data_bucket` (random suffix).
+      # get-object, not head-object: HEAD responses carry no error code, so
+      # a denied request and an invalid key both read only "(403) Forbidden".
+      read:
+        command: >-
+          aws s3api get-object --bucket ${LAB_DATA_BUCKET} --key probe.txt
+          /dev/null --profile {role}
+      write:
+        command: >-
+          aws s3api put-object --bucket ${LAB_DATA_BUCKET} --key probe-{role}.txt
+          --profile {role}
+
+  aws-app:
+    type: http
+    url: http://10.100.10.10:8080
+    operations:
+      read: {method: GET, path: /}
+
+# Phase 2 (OpenZiti) least-privilege model: a role reaches only the
+# services it may dial (ansible-openziti group_vars, ziti_services); for
+# anything else the overlay offers no path, so the deny is network-level.
+# Changes from matrix.yaml: legacy-service is admin-only (developer and
+# analyst now deny). Unchanged results whose mechanism changes:
+#   - remote-contractor -> postgres: deny by the overlay (no dial policy),
+#     previously by database grants behind a permitted network path
+#   - remote-contractor -> file-service, legacy-service, aws-app: deny by
+#     the overlay, previously by the perimeter ruleset
+# Unchanged mechanisms: postgres write for analyst (database grants) and
+# S3 (IAM, reached over the internet, outside the overlay).
+expectations:
+  remote-admin:
+    intranet-web: {read: allow}
+    file-service: {connect: allow}
+    postgres: {read: allow, write: allow}
+    legacy-service: {connect: allow}
+    aws-s3-data: {read: allow, write: allow}
+    aws-app: {read: allow}
+
+  remote-developer:
+    intranet-web: {read: allow}
+    file-service: {connect: allow}
+    postgres: {read: allow, write: allow}
+    legacy-service: {connect: deny}    # admin only (segment-and-proxy)
+    aws-s3-data: {read: allow, write: deny}
+    aws-app: {read: allow}
+
+  remote-analyst:
+    intranet-web: {read: allow}
+    file-service: {connect: allow}
+    postgres: {read: allow, write: deny}
+    legacy-service: {connect: deny}    # admin only (segment-and-proxy)
+    aws-s3-data: {read: allow, write: deny}
+    aws-app: {read: allow}
+
+  remote-contractor:
+    intranet-web: {read: allow}
+    file-service: {connect: deny}
+    postgres: {read: deny, write: deny}
+    legacy-service: {connect: deny}
+    aws-s3-data: {read: deny, write: deny}
+    aws-app: {read: deny}

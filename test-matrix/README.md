@@ -9,6 +9,8 @@ least privilege — every role must carry both `allow` and `deny` rows.
 
 - `run_matrix.py` — probe runner (Python 3.10+, PyYAML only; `requirements.txt`)
 - `matrix.yaml` — Phase 1 (perimeter baseline) access model
+- `matrix-phase2-openziti.yaml` — Phase 2, OpenZiti: same resources,
+  least-privilege expectations (phase label `phase-2-openziti`)
 - `aggregate.py` — merges result CSVs, per-phase/role summary, nonzero
   exit on any FAIL/ERROR (usable as a migration-wave gate)
 - `results/` — CSV output, one file per run (commit these; they are data)
@@ -83,6 +85,18 @@ The Phase 1 matrix deliberately encodes the coarse perimeter model,
 including over-broad allows; later matrices tighten to least privilege.
 The git diff between phase matrices is itself an analysis artifact: it
 quantifies the access-model change the migration delivers.
+
+Phase 2 (OpenZiti) runs, one role at a time, logged in through Ziti
+Desktop Edge as that role (ansible-openziti README, step 6):
+
+```bash
+./run_matrix.py --matrix matrix-phase2-openziti.yaml --role remote-contractor --dry-run
+./run_matrix.py --matrix matrix-phase2-openziti.yaml --role remote-contractor
+```
+
+Network-level denies in this phase are a timeout or a refused
+connection (no intercept for the address and port); postgres's
+`deny_pattern` and `deny_on_timeout` already cover both.
 
 ## Result schema
 
