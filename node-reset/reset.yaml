@@ -91,6 +91,21 @@
       changed_when: false
       tags: [to-recovery]
 
+    # Restore and to-main act on paths that are only safe from recovery:
+    # restore dd's the eMMC root (fatal if that is the running root), and
+    # to-main renames /boot/extlinux/extlinux.conf (from main that would
+    # disable MAIN's boot entry, leaving nothing bootable). Re-checked here
+    # so a run with --tags restore / to-main cannot start from main.
+    - name: Require the recovery OS before restore / to-main
+      ansible.builtin.shell: |
+        test -e /etc/recovery-os && \
+        findmnt -n -o SOURCE / | grep -qx "{{ recovery_root_part }}" && \
+        ! findmnt -S {{ main_root_part }}
+      register: in_recovery
+      changed_when: false
+      failed_when: in_recovery.rc != 0
+      tags: [restore, to-main]
+
     # --------------------------------------------------------- restore
     - name: Verify golden image checksum
       ansible.builtin.shell: |
