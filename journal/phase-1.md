@@ -2555,11 +2555,11 @@ Rolled iperf3 into tpi2-3's golden baseline without capturing test data.
    pgdata already existed, so grants were unchanged.
 3. Recaptured the golden image: to-recovery, capture-golden.sh, then
    to-main and verify.
-New tpi2-3 golden sha256: <fill in>
-Capture time: <fill in>. Provenance line: <fill in>.
+New tpi2-3 golden sha256: 0008e8f5e4e9a838503b2603da2e30a4300942ec308f81acad6f16584b356533
+Capture time: 10:00.
 From now on, a reset of tpi2-3 restores the workloads including iperf3.
 
-## 2026-10-11 23:10-23:MM | phase-1 | perf-battery | planning
+## 2026-10-10 23:10-23:25 | phase-1 | perf-battery | planning
 Decided to run the performance battery from the Mac on a phone hotspot rather
 than a dedicated cloud worker (a small EC2 instance in a separate VPC). The
 hotspot has been reliable in practice, and setup cost and time favour it.
@@ -2645,3 +2645,32 @@ rep 5 http latency p50=216.0ms n=50
 15 rows -> results/phase-1_vpn-aws_20261011T061852Z_89ea2adc52f3.csv
 ```
 
+## 2026-10-10 23:25-23:30 | phase-1 | perf-battery | testing
+Reviewed the Phase 1 performance results (runs `f926e0d5420b` baseline,
+`8c4335212d4d` vpn, `89ea2adc52f3` vpn-aws) and decided NOT to re-run them,
+because of time. They are kept as the Phase 1 measurements with the
+following limitations, which the analysis must account for:
+
+- Baseline was measured over Wi-Fi, not wired. HTTP p50 to a static page
+  on the same subnet was 16-80 ms per rep (expected about 1-3 ms wired) and
+  upload varied 43-120 Mbps. The baseline therefore includes Wi-Fi
+  latency and variance and does not cleanly isolate substrate cost.
+- vpn (hotspot, remote-admin) had two anomalous reps out of five: rep 2
+  p50 1135 ms (others 128-177 ms) and rep 3 upload 0.29 Mbps (others
+  7.4-10.0 Mbps). With them, p50 is 345 +/- 442 ms; without them, about
+  150 ms p50, 8 Mbps up, 29 Mbps down. The control ping taken before the
+  run was normal (avg 36.9 ms, sd 6.5 ms), so conditions changed during
+  the run, which a single pre-run control cannot detect.
+- Latency maxima cluster near 1.14 s (and one at 2.88 s) on both vpn and
+  vpn-aws. This is the pattern of TCP SYN retransmission (1 s, then +2 s),
+  since curl opens a new connection per sample, so the maxima mostly
+  reflect packet loss on the hotspot/UDP tunnel path, not server response.
+- vpn-aws (HTTP only) was comparatively stable: p50 255 +/- 31 ms.
+
+Analysis rules adopted for this and later phases: report the median across
+reps alongside mean and standard deviation; use p50 as the headline
+latency metric; report reps 2 and 3 of the vpn run (and any later
+anomalous reps) rather than silently dropping them; treat cross-phase
+comparisons on the same hotspot as primary, and baseline-vs-path as
+indicative only. Possible future improvement, not done: a per-rep control
+ping and a target column in run_perf.py.
