@@ -69,6 +69,8 @@ groups `edge_host` (address from `LAB_EDGE_IP`) and `lab_gateway`
 (tpi2-4).
 
 ## 2026-10-11 09:55-11:00 | phase-2 | openziti | deployment
+Step 4, openziti deployment
+
 Caddy image digest: `sha256:f2a1290d0463aad60660d4ec134943f183ee2a5f6c3eb7bf32dd984f2f020772`
 
 ```
