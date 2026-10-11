@@ -183,3 +183,72 @@ ok: [ziti-edge] => {
     }
 }
 ```
+
+## 2026-10-11 11:00-11:15 | phase-2 | openvpn | deployment
+Step 5, decomissioning openvpn clients.
+
+```
+TASK [Show ufw rules before] ***********************************************************************************************************************************************
+ok: [tpi2-4] => {
+    "ufw_before.stdout_lines": [
+        "Status: active",
+        "",
+        "     To                         Action      From",
+        "     --                         ------      ----",
+        "[ 1] 1194/udp                   ALLOW IN    Anywhere                  ",
+        "[ 2] Anywhere on tun0           ALLOW IN    Anywhere                  ",
+        "[ 3] 10.0.0.0/24                ALLOW FWD   10.9.0.16/28 on tun0       # staff -> on-prem LAN",
+        "[ 4] 10.100.0.0/16              ALLOW FWD   10.9.0.16/28 on tun0       # staff -> AWS VPC",
+        "[ 5] 10.0.0.73 8080/tcp         ALLOW FWD   10.9.0.32/28 on tun0       # contractor -> intranet-web",
+        "[ 6] 10.0.0.73 5432/tcp         ALLOW FWD   10.9.0.32/28 on tun0       # contractor -> postgres (db denies)",
+        "[ 7] 10.0.0.153 53/udp          ALLOW FWD   10.9.0.32/28 on tun0       # contractor -> lab DNS",
+        "[ 8] 10.0.0.153 53/tcp          ALLOW FWD   10.9.0.32/28 on tun0       # contractor -> lab DNS (tcp)",
+        "[ 9] Anywhere                   ALLOW IN    10.0.0.0/24                # lab LAN -> tpi2-4 (ssh, node_exporter)",
+        "[10] 10.0.0.72 8080/tcp         ALLOW FWD   10.100.1.0/24 on s2s0      # phase 2: edge host IdP proxy -> Keycloak",
+        "[11] 1194/udp (v6)              ALLOW IN    Anywhere (v6)             ",
+        "[12] Anywhere (v6) on tun0      ALLOW IN    Anywhere (v6)             "
+    ]
+}
+
+TASK [Show removed rules (journal; the perimeter ruleset as deployed)] *****************************************************************************************************
+ok: [tpi2-4] => {
+    "removed.stdout_lines": [
+        "removed: 1194/udp                   ALLOW IN    Anywhere                  ",
+        "removed: Anywhere on tun0           ALLOW IN    Anywhere                  ",
+        "removed: 10.0.0.0/24                ALLOW FWD   10.9.0.16/28 on tun0       # staff -> on-prem LAN",
+        "removed: 10.100.0.0/16              ALLOW FWD   10.9.0.16/28 on tun0       # staff -> AWS VPC",
+        "removed: 10.0.0.73 8080/tcp         ALLOW FWD   10.9.0.32/28 on tun0       # contractor -> intranet-web",
+        "removed: 10.0.0.73 5432/tcp         ALLOW FWD   10.9.0.32/28 on tun0       # contractor -> postgres (db denies)",
+        "removed: 10.0.0.153 53/udp          ALLOW FWD   10.9.0.32/28 on tun0       # contractor -> lab DNS",
+        "removed: 10.0.0.153 53/tcp          ALLOW FWD   10.9.0.32/28 on tun0       # contractor -> lab DNS (tcp)",
+        "removed: 1194/udp (v6)              ALLOW IN    Anywhere (v6)             ",
+        "removed: Anywhere (v6) on tun0      ALLOW IN    Anywhere (v6)             "
+    ]
+}
+
+TASK [Remote access gone; site-to-site and forwarding intact] **************************************************************************************************************
+ok: [tpi2-4] => {
+    "changed": false,
+    "msg": "state: {\"server_active\": \"inactive\", \"udp1194_listeners\": \"0\", \"tun0_present\": \"no\", \"vpn_rules_left\": \"0\", \"vpn_nat_left\": \"0\", \"routed_default\": \"deny (routed)\", \"s2s_active\": \"active\", \"s2s_route\": \"1\", \"ip_forward\": \"1\"}"
+}
+
+TASK [Show ufw state after] ************************************************************************************************************************************************
+ok: [tpi2-4] => {
+    "ufw_after.stdout_lines": [
+        "Status: active",
+        "Logging: on (low)",
+        "Default: deny (incoming), allow (outgoing), deny (routed)",
+        "New profiles: skip",
+        "",
+        "To                         Action      From",
+        "--                         ------      ----",
+        "Anywhere                   ALLOW IN    10.0.0.0/24                # lab LAN -> tpi2-4 (ssh, node_exporter)",
+        "",
+        "10.0.0.72 8080/tcp         ALLOW FWD   10.100.1.0/24 on s2s0      # phase 2: edge host IdP proxy -> Keycloak"
+    ]
+}
+```
+
+Removing the port-forward for UDP/1194.
+Removing the Phase 1 OpenVPN client profiles.
+Re-ran the `ansible-openziti` playbook and confirmed there were no changes.
