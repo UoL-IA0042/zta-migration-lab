@@ -111,18 +111,30 @@ Install and add the network (once):
    curl -sk "https://ctrl.<edge-ip-dashed>.sslip.io:1280/edge/client/v1/network-jwts" \
      | jq -r '.data[0].token' > ~/Downloads/zta-lab-network.jwt
    ```
-4. Turn the identity on, click the key badge, log in as the role in the
-   browser window that opens. One provider (`keycloak`) is configured,
-   so there is no provider choice.
+4. Connect (top of the window) and turn the identity on. Its status
+   reads "Enrolled (Authentication Required)". In the identity details,
+   the row labelled MFA ends with a small person-with-key button
+   (tooltip "External Auth", orange); click it and log in as the role in
+   the browser window that opens. One provider (`keycloak`) is
+   configured, so there is no provider choice. The badge turns green.
+
+   Known 2.59 defect: if the window was first drawn with no identity
+   selected (for example before the first identity was added), the
+   button stays disabled. Quit Ziti Desktop Edge from its menu-bar icon
+   and reopen it, or use the action on the "External Auth Required"
+   notification, which starts the same login.
 
 Per role (matrix and perf runs are one role at a time):
 
 1. Keycloak keeps a browser session, so the next login would silently
-   reuse the previous role. Sign out first:
-   `https://idp.<edge-ip-dashed>.sslip.io/realms/lab/account` -> Sign out,
-   in the default browser (Ziti Desktop Edge opens the login there).
-2. In Ziti Desktop Edge, **Forget This Identity**, then add it again
-   (**With URL ...**), then authenticate as the next role.
+   reuse the previous role. Sign out first, in the default browser (Ziti
+   Desktop Edge opens the login there):
+   `https://idp.<edge-ip-dashed>.sslip.io/realms/lab/protocol/openid-connect/logout`
+   and confirm. (The account console at `/realms/lab/account` shows "an
+   unexpected error occurred" in this realm; it is not needed.)
+2. In Ziti Desktop Edge, remove the identity (`-` under the identity
+   list, then confirm), add it again (**With URL ...**), and
+   authenticate as the next role.
 3. Before running anything, check:
    - the badge is green and the identity's service list is exactly the
      role's dial set (access model below; contractor sees only
