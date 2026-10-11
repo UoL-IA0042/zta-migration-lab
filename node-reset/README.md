@@ -41,16 +41,35 @@ keeps booting recovery — re-run from `--tags restore`.
 
 ## One-time setup per node
 
-1. Repartition the NVMe (currently one whole-disk `/data`, 28K used):
-   p1 = 16G recovery, p2 = rest as `/data`; update fstab by-UUID.
-2. Install the recovery OS onto nvme0n1p1 (seeded image via
-   `prepare-golden-image.sh`, or debootstrap). Verify it boots (it will
-   win the scan while enabled) and has your SSH key, then rename its
-   `/boot/extlinux/extlinux.conf` to `extlinux.conf.disabled` and
-   reboot back to main.
-3. Bring the main OS to baseline, write `/etc/golden-image-release`,
-   run `reset.yaml --tags to-recovery`, then `./capture-golden.sh tpi2-N`.
-   Today's install becomes the golden image.
+1. **Repartition and build the recovery OS** with `setup-recovery.yaml`
+   (destructive: erases the NVMe). It refuses unless confirmed, refuses
+   a non-empty `/data`, and skips nodes already set up:
+
+   ```bash
+   ansible-playbook -i inventory.yaml setup-recovery.yaml -l tpi2-N -e confirm_wipe_nvme=yes
+   ```
+
+   It repartitions to p1 = 16G recovery + p2 = `/data` (fstab by UUID,
+   `nofail`), clones the running eMMC root into p1 as the recovery OS
+   (own root UUID in fstab, `extlinux.conf` and `/etc/default/u-boot`;
+   cloud-init, docker/containerd/k3s, alloy and automatic updates
+   disabled; `/etc/recovery-os` marker), writes `/etc/golden-image-release`
+   on main if absent, and leaves recovery's `extlinux.conf` renamed to
+   `.disabled`. Because recovery is a clone, it keeps main's network
+   config (including an edge node's pinned MAC), SSH keys and host keys,
+   so it answers on the inventory address.
+2. **Test the boot switch**: `reset.yaml -l tpi2-N --tags to-recovery`.
+   Know the UART escape first: power-cycle, interrupt autoboot with
+   `tpi uart -n N set --cmd ""`, then `setenv boot_targets mmc0` and
+   `bootflow scan` boots main for that boot (the environment cannot be
+   saved, but can be changed); rename recovery's extlinux back to
+   `.disabled` from main.
+3. **Capture** with recovery running: `./capture-golden.sh tpi2-N <address>`,
+   then `reset.yaml -l tpi2-N --tags to-main,verify`. Bring main to the
+   intended baseline *before* capturing: the golden image is what every
+   reset returns to.
+4. **Prove the restore path once** with a full cycle:
+   `reset.yaml -l tpi2-N`. Journal capture and restore timings.
 
 ## Usage
 

@@ -1,0 +1,271 @@
+# One-time node-reset setup (README "One-time setup per node", steps 1-2):
+# repartition the NVMe into p1 = recovery OS and p2 = /data, clone the
+# running eMMC root into p1 as the recovery OS, and leave the boot switch
+# DISABLED (recovery's extlinux.conf renamed to .disabled). Mirrors the
+# manual procedure validated on tpi2-4 (journal phase-1).
+#
+# DESTRUCTIVE: erases the whole NVMe. Requires -e confirm_wipe_nvme=yes.
+# Refuses a node whose /data holds more than setup_max_data_kb unless
+# -e allow_data_loss=yes. Nodes already set up are skipped, so re-running
+# against the whole group is safe.
+#
+#   ansible-playbook -i inventory.yaml setup-recovery.yaml -l tpi2-1 -e confirm_wipe_nvme=yes
+#
+# Afterwards, per node: reset.yaml --tags to-recovery, capture-golden.sh,
+# then reset.yaml --tags to-main,verify (README).
+---
+- name: Set up recovery OS and data partition
+  hosts: turingpi
+  become: true
+  serial: 1
+  any_errors_fatal: true
+
+  vars:
+    nvme_disk: /dev/nvme0n1
+    recovery_size: 16G
+    setup_max_data_kb: 1024
+    # Services that must not run in the recovery OS (missing ones are ignored).
+    recovery_disable_units:
+      - docker.socket
+      - docker.service
+      - containerd.service
+      - alloy.service
+      - k3s.service
+      - k3s-agent.service
+      - unattended-upgrades.service   # a kernel update would regenerate an ENABLED extlinux.conf
+      - apt-daily.timer
+      - apt-daily-upgrade.timer
+
+  tasks:
+    # ------------------------------------------------------- pre-flight
+    - name: Require explicit confirmation (erases the NVMe)
+      ansible.builtin.assert:
+        that: confirm_wipe_nvme | default('no') | bool
+        fail_msg: "Destructive: re-run with -e confirm_wipe_nvme=yes"
+        quiet: true
+
+    - name: Read NVMe partition layout
+      ansible.builtin.command: lsblk -J -o NAME,PATH,LABEL,MOUNTPOINTS {{ nvme_disk }}
+      register: nvme_layout
+      changed_when: false
+
+    - name: Classify the layout
+      ansible.builtin.set_fact:
+        nvme_parts: "{{ (nvme_layout.stdout | from_json).blockdevices[0].children | default([]) }}"
+
+    - name: Classify the layout (already set up?)
+      ansible.builtin.set_fact:
+        already_set_up: "{{ nvme_parts | map(attribute='label') | list == ['recovery', 'data'] }}"
+
+    - name: Already set up, nothing to do
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }}: NVMe already has recovery + data partitions; skipping"
+      when: already_set_up
+
+    - name: Skip a node that is already set up
+      ansible.builtin.meta: end_host
+      when: already_set_up
+
+    - name: Require the factory layout (one whole-disk partition on {{ data_mount }})
+      ansible.builtin.assert:
+        that:
+          - nvme_parts | length == 1
+          - nvme_parts[0].path == recovery_root_part
+          - data_mount in (nvme_parts[0].mountpoints | default([]))
+        fail_msg: "Unexpected NVMe layout on {{ inventory_hostname }}: {{ nvme_parts }}"
+
+    - name: Require the main OS (root on the eMMC)
+      ansible.builtin.command: findmnt -n -o SOURCE /
+      register: rootsrc
+      changed_when: false
+      failed_when: rootsrc.stdout != main_root_part
+
+    - name: Install tools (partitioning, clone, capture)
+      ansible.builtin.apt:
+        name: [gdisk, parted, rsync, psmisc, zstd]
+        state: present
+
+    - name: Measure data on {{ data_mount }} (excluding lost+found)
+      ansible.builtin.shell: du -sxk --exclude=lost+found {{ data_mount }} | cut -f1
+      register: data_kb
+      changed_when: false
+
+    - name: Refuse to erase a non-empty {{ data_mount }}
+      ansible.builtin.assert:
+        that: data_kb.stdout | int <= setup_max_data_kb or (allow_data_loss | default('no') | bool)
+        fail_msg: >-
+          {{ data_mount }} holds {{ data_kb.stdout }} KB on {{ inventory_hostname }};
+          back it up, then re-run with -e allow_data_loss=yes
+        quiet: true
+
+    - name: Refuse if a process is using {{ data_mount }}
+      ansible.builtin.command: fuser -m {{ data_mount }}
+      register: data_users
+      changed_when: false
+      failed_when: data_users.rc != 1   # 1 = no process found
+
+    # ---------------------------------------------------- repartition
+    - name: Unmount any stray recovery mount
+      ansible.posix.mount:
+        path: "{{ recovery_mount }}"
+        state: unmounted
+
+    - name: Unmount {{ data_mount }} and drop its old fstab entry
+      ansible.posix.mount:
+        path: "{{ data_mount }}"
+        state: absent
+
+    - name: Wipe and repartition the NVMe
+      ansible.builtin.shell: |
+        set -euo pipefail
+        wipefs -a {{ nvme_disk }}
+        sgdisk --zap-all {{ nvme_disk }}
+        sgdisk -n1:0:+{{ recovery_size }} -t1:8300 -c1:recovery \
+               -n2:0:0 -t2:8300 -c2:data {{ nvme_disk }}
+        partprobe {{ nvme_disk }}
+        udevadm settle
+      args:
+        executable: /bin/bash
+
+    - name: Create filesystems
+      ansible.builtin.command: mkfs.ext4 -F -L {{ item.label }} {{ item.dev }}
+      loop:
+        - {dev: "{{ recovery_root_part }}", label: recovery}
+        - {dev: "{{ data_part }}", label: data}
+
+    - name: Read filesystem UUIDs
+      ansible.builtin.command: blkid -s UUID -o value {{ item }}
+      loop:
+        - "{{ recovery_root_part }}"
+        - "{{ data_part }}"
+        - "{{ main_root_part }}"
+      register: uuids
+      changed_when: false
+
+    - name: Record UUIDs
+      ansible.builtin.set_fact:
+        recovery_uuid: "{{ uuids.results[0].stdout }}"
+        data_uuid: "{{ uuids.results[1].stdout }}"
+        main_uuid: "{{ uuids.results[2].stdout }}"
+
+    # Before the clone, so the recovery OS inherits the same /data entry.
+    - name: Mount the new {{ data_mount }} by UUID (nofail)
+      ansible.posix.mount:
+        path: "{{ data_mount }}"
+        src: "UUID={{ data_uuid }}"
+        fstype: ext4
+        opts: defaults,nofail
+        passno: "2"
+        state: mounted
+
+    - name: Write the golden-image provenance marker on main (if absent)
+      ansible.builtin.copy:
+        dest: "{{ golden_marker }}"
+        content: "{{ inventory_hostname }} {{ now(utc=true, fmt='%Y-%m-%dT%H:%M:%SZ') }} phase-0 baseline\n"
+        force: false
+        mode: "0644"
+
+    # ------------------------------------------------- recovery clone
+    - name: Mount the recovery partition (ephemeral)
+      ansible.posix.mount:
+        path: "{{ recovery_mount }}"
+        src: "{{ recovery_root_part }}"
+        fstype: ext4
+        state: ephemeral
+
+    # -x stays on the root filesystem: /proc, /sys, /dev, /run, /data and the
+    # target itself are skipped, but their empty mount-point directories are created.
+    - name: Clone the main root into the recovery partition
+      ansible.builtin.command: >-
+        rsync -aHAXx --numeric-ids
+        --exclude=/var/lib/docker/ --exclude=/var/lib/containerd/
+        --exclude=/var/lib/rancher/ --exclude=/swapfile --exclude=/lost+found
+        / {{ recovery_mount }}/
+
+    - name: Point the recovery root and boot entry at the recovery partition
+      ansible.builtin.replace:
+        path: "{{ recovery_mount }}{{ item }}"
+        regexp: "{{ main_uuid }}"
+        replace: "{{ recovery_uuid }}"
+      loop:
+        - /etc/fstab
+        - "{{ recovery_extlinux_dir }}/extlinux.conf"
+
+    - name: Check for u-boot-update defaults in the recovery OS
+      ansible.builtin.stat:
+        path: "{{ recovery_mount }}/etc/default/u-boot"
+      register: uboot_defaults
+
+    - name: Point u-boot-update at the recovery partition
+      ansible.builtin.replace:
+        path: "{{ recovery_mount }}/etc/default/u-boot"
+        regexp: "{{ main_uuid }}"
+        replace: "{{ recovery_uuid }}"
+      when: uboot_defaults.stat.exists
+
+    - name: Label the recovery boot entries
+      ansible.builtin.replace:
+        path: "{{ recovery_mount }}{{ recovery_extlinux_dir }}/extlinux.conf"
+        regexp: '^(\s*menu label )(?!RECOVERY )'
+        replace: '\1RECOVERY '
+
+    - name: Disable cloud-init in the recovery OS
+      ansible.builtin.copy:
+        dest: "{{ recovery_mount }}/etc/cloud/cloud-init.disabled"
+        content: ""
+        mode: "0644"
+
+    - name: Mark the recovery OS
+      ansible.builtin.copy:
+        dest: "{{ recovery_mount }}/etc/recovery-os"
+        content: "{{ inventory_hostname }} recovery OS, cloned {{ now(utc=true, fmt='%Y-%m-%dT%H:%M:%SZ') }}\n"
+        mode: "0644"
+
+    - name: Remove the golden marker from the recovery OS (it belongs to main)
+      ansible.builtin.file:
+        path: "{{ recovery_mount }}{{ golden_marker }}"
+        state: absent
+
+    - name: Disable lab services in the recovery OS
+      ansible.builtin.command: systemctl --root={{ recovery_mount }} disable {{ item }}
+      loop: "{{ recovery_disable_units }}"
+      register: disable_out
+      changed_when: disable_out.rc == 0 and 'Removed' in (disable_out.stdout + disable_out.stderr)
+      failed_when: false
+
+    - name: Leave the boot switch DISABLED
+      ansible.builtin.command:
+        cmd: >-
+          mv {{ recovery_mount }}{{ recovery_extlinux_dir }}/extlinux.conf
+             {{ recovery_mount }}{{ recovery_extlinux_dir }}/extlinux.conf.disabled
+        creates: "{{ recovery_mount }}{{ recovery_extlinux_dir }}/extlinux.conf.disabled"
+
+    # ----------------------------------------------------------- verify
+    - name: Verify the recovery tree
+      ansible.builtin.shell: |
+        set -euo pipefail
+        R={{ recovery_mount }}
+        X=$R{{ recovery_extlinux_dir }}
+        if grep -q {{ main_uuid }} $R/etc/fstab $X/extlinux.conf.disabled; then
+          echo "main root UUID still referenced in the recovery OS"; exit 1
+        fi
+        grep -q "root=UUID={{ recovery_uuid }}" $X/extlinux.conf.disabled
+        grep -Eq "^UUID={{ recovery_uuid }}[[:space:]]+/[[:space:]]" $R/etc/fstab
+        grep -Eq "^UUID={{ data_uuid }}[[:space:]]+{{ data_mount }}[[:space:]]" $R/etc/fstab
+        test ! -e $X/extlinux.conf
+        ls $R/boot/vmlinuz-* $R/boot/initrd.img-* > /dev/null
+        test "$(find $R/lib/firmware -name '*.dtb' | wc -l)" -gt 0
+      args:
+        executable: /bin/bash
+      changed_when: false
+
+    - name: Unmount the recovery partition
+      ansible.posix.mount:
+        path: "{{ recovery_mount }}"
+        state: unmounted
+
+    - name: Report (journal this)
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }}: recovery={{ recovery_uuid }} data={{ data_uuid }}
+          main={{ main_uuid }}; boot switch disabled. Next: reset.yaml --tags to-recovery.
