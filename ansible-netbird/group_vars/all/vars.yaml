@@ -1,0 +1,24 @@
+# NetBird, Phase 2 (docs/phase-2-netbird.md).
+---
+# --- Edge host (terraform-aws enable_netbird) ------------------------------
+# Elastic IP from terraform-aws (edge_host_public_ip), via the environment
+# so no public address is committed. The sslip.io names embed it.
+lab_edge_ip: "{{ lookup('env', 'LAB_EDGE_IP') }}"
+lab_edge_dashed: "{{ lab_edge_ip | replace('.', '-') }}"
+idp_public_host: "idp.{{ lab_edge_dashed }}.sslip.io"
+netbird_public_host: "netbird.{{ lab_edge_dashed }}.sslip.io"
+
+edge_subnet_cidr: 10.100.1.0/24          # terraform-aws local.edge_subnet_cidr
+keycloak_backend: "10.0.0.72:8080"       # tpi2-2, reached through the tunnel
+edge_install_dir: /opt/edge              # Caddy
+caddy_image: "caddy:2.11"                # VERIFY; journal the digest
+
+# NetBird behind Caddy (NetBird's external-Caddy layout): the combined
+# server and the dashboard listen on loopback only.
+netbird_server_port: 8081
+netbird_dashboard_port: 8080
+
+# Keycloak: issuer served through the edge host (ansible-keycloak with
+# LAB_EDGE_IP set). NetBird's embedded IdP uses it as an upstream OIDC
+# provider; it must match the discovery document exactly.
+keycloak_issuer: "https://{{ idp_public_host }}/realms/lab"

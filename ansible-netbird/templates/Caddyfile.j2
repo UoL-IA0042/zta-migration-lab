@@ -1,0 +1,21 @@
+# Managed by ansible-netbird/idp-path.yaml. Automatic Let's Encrypt
+# certificates for both names; no ACME e-mail, so the certificate account
+# carries no personal identifier.
+
+# Keycloak, through the site-to-site tunnel (tpi2-4 NATs onto the LAN)
+{{ idp_public_host }} {
+    reverse_proxy {{ keycloak_backend }}
+}
+
+# NetBird: routes from NetBird's external-Caddy layout (getting-started.sh,
+# v0.80.0). gRPC needs HTTP/2 cleartext to the combined server.
+{{ netbird_public_host }} {
+    @grpc header Content-Type application/grpc*
+    reverse_proxy @grpc h2c://127.0.0.1:{{ netbird_server_port }}
+
+    # relay, signal and management websockets, REST API, embedded IdP
+    @backend path /relay* /ws-proxy/* /api/* /oauth2/*
+    reverse_proxy @backend 127.0.0.1:{{ netbird_server_port }}
+
+    reverse_proxy /* 127.0.0.1:{{ netbird_dashboard_port }}
+}

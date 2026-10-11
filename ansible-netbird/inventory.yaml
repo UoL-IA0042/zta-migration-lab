@@ -1,11 +1,19 @@
-# NetBird self-hosted management stack on tpi2-2.
+# NetBird, Phase 2: management server, dashboard and IdP proxy on the AWS
+# edge host; routing peers on tpi2-4 and the edge host. Edge host address
+# from the environment so no public IP is committed:
+#   export LAB_EDGE_IP=$(terraform -chdir=../terraform-aws output -raw edge_host_public_ip)
 ---
 all:
   children:
-    netbird:
+    edge_host:
       hosts:
-        tpi2-2:
-          ansible_host: 10.0.0.72
+        nb-edge:
+          ansible_host: "{{ lookup('env', 'LAB_EDGE_IP') }}"
+    # tpi2-4: lab end of the site-to-site tunnel (IdP relay path)
+    lab_gateway:
+      hosts:
+        tpi2-4:
+          ansible_host: 10.0.0.251
   vars:
     ansible_user: ubuntu
     ansible_python_interpreter: /usr/bin/python3
