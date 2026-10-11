@@ -67,16 +67,22 @@ variable "lab_roles" {
   default     = ["remote-admin", "remote-developer", "remote-analyst", "remote-contractor"]
 }
 
-# Phase 2 (OpenZiti), used by phase2-openziti.tf and the hub security
-# group in main.tf. docs/phase-2-openziti.md.
+# Phase 2 experiments, used by phase2-edge.tf and the hub security
+# group in main.tf. docs/phase-2-openziti.md, docs/phase-2-netbird.md.
 variable "enable_openziti" {
-  description = "Create the Phase 2 OpenZiti edge host (subnet, route table, security group, instance, Elastic IP)"
+  description = "Phase 2 OpenZiti experiment: create the edge host (subnet, route table, security group, instance, Elastic IP) with the OpenZiti ports"
   type        = bool
   default     = false
 }
 
-variable "ziti_edge_instance_type" {
-  description = "Edge host instance type (Graviton: controller + public router + proxy)"
+variable "enable_netbird" {
+  description = "Phase 2 NetBird experiment: create the edge host with the NetBird ports (STUN 3478/udp); not together with enable_openziti"
+  type        = bool
+  default     = false
+}
+
+variable "edge_instance_type" {
+  description = "Edge host instance type (Graviton: the experiment's public components + IdP proxy)"
   type        = string
   default     = "t4g.small"
 }
