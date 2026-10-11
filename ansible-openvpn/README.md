@@ -14,6 +14,8 @@ ARM64 since it installs the distro `openvpn` package).
   `AWS_VPN_GATEWAY_IP`)
 - `openvpn.yaml` — three plays: site-to-site hub on AWS, remote-access
   server on tpi2-4, site-to-site client on tpi2-4
+- `decommission-remote-access.yaml` — Phase 2 onward: retires the
+  remote-access server on tpi2-4, keeps the site-to-site leg
 
 ## Usage
 
@@ -86,6 +88,40 @@ as input; the play prints the live `ufw status verbose` for the
 journal. The role resets ufw to incoming ALLOW / forward ACCEPT on every
 run, so the play's post_tasks re-apply default-deny for both (SSH and
 monitoring are allowed from the lab LAN only).
+
+## Decommission remote access (Phase 2 onward)
+
+Once a ZTNA overlay carries remote access (Phase 2 step 4),
+`decommission-remote-access.yaml` retires the remote-access VPN on
+tpi2-4 and keeps the site-to-site leg:
+
+```bash
+export LAB_EDGE_IP=$(terraform -chdir=../terraform-aws output -raw edge_host_public_ip)   # optional: IdP path check
+ansible-playbook -i inventory.yaml decommission-remote-access.yaml
+```
+
+| Removed | Kept |
+|---|---|
+| `openvpn-server@openvpn_udp_1194`, `openvpn-crl-refresh.timer` (stopped, disabled) | `openvpn-client@aws-s2s` (s2s0) and the route to 10.100.0.0/16 |
+| ufw: 1194/udp in, all in on tun0, the perimeter ruleset (route rules on tun0) | ufw: LAN rule, s2s0 rules, IdP relay rule, default deny incoming and routed |
+| remote-access NAT block in `/etc/ufw/before.rules` | IdP relay NAT block, IPv4 forwarding |
+| | OpenVPN package and server PKI on disk (re-running `openvpn.yaml` restores the VPN) |
+
+The playbook prints the ufw rules before, the rules it removed (the
+perimeter ruleset as deployed) and the state after; journal all three.
+It then checks that the server is gone (no 1194/udp listener, no tun0, no
+remote-access rules or NAT) and that the site-to-site leg still works
+(aws-app answers through the tunnel; with `LAB_EDGE_IP`, the IdP issuer
+through the edge host).
+
+Manual steps, journaled:
+1. Delete the 1194/udp port forward to tpi2-4 on the ISP gateway
+   (Xfinity app). After this the lab has no inbound port.
+2. On the remote-worker machine, disconnect and remove the Phase 1
+   OpenVPN profiles so no test can fall back to the VPN path.
+3. Re-run `ansible-openziti/site.yaml`: it should report no changes and
+   its final check confirms the overlay (both routers online and linked,
+   every service hosted).
 
 ## Notes for the dissertation
 

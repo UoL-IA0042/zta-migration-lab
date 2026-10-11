@@ -1,0 +1,182 @@
+# Phase 2 step 5 (docs/phase-2-openziti.md): retire the remote-access VPN
+# on tpi2-4 once the ZTNA overlay carries remote access. Removes exactly
+# what openvpn.yaml's remote-access play added:
+#   - openvpn-server@openvpn_udp_1194 and its CRL refresh timer
+#   - ufw: 1194/udp in, everything in on tun0, the perimeter ruleset
+#     (route rules on tun0)
+#   - the remote-access NAT block in /etc/ufw/before.rules
+# and keeps what later phases depend on: the site-to-site client
+# (openvpn-client@aws-s2s on s2s0) and its routes, the IdP relay rule and
+# NAT (ansible-openziti/idp-path.yaml), IPv4 forwarding, and the OpenVPN
+# package and server PKI on disk. Reversible: re-run openvpn.yaml.
+#
+# Prints the removed rules and the before/after ufw state for the journal.
+# The ISP gateway's 1194/udp forward is deleted by hand (README).
+#
+#   ansible-playbook -i inventory.yaml decommission-remote-access.yaml
+#   (with LAB_EDGE_IP set, the last play also checks the IdP path)
+---
+- name: Decommission remote-access OpenVPN (tpi2-4)
+  hosts: vpn
+  become: true
+  gather_facts: false
+
+  vars:
+    server_units:
+      - openvpn-server@openvpn_udp_1194.service   # kyl191.openvpn: openvpn_<proto>_<port>
+      - openvpn-crl-refresh.timer
+    vpn_server_network: 10.9.0.0/24               # openvpn.yaml remote-access range
+    s2s_unit: openvpn-client@aws-s2s
+    aws_app_url: http://10.100.10.10:8080/
+
+  handlers:
+    - name: Reload ufw
+      ansible.builtin.command: ufw reload
+      changed_when: true
+
+  tasks:
+    - name: Record ufw rules before (journal)
+      ansible.builtin.command: ufw status numbered
+      register: ufw_before
+      changed_when: false
+
+    - name: Show ufw rules before
+      ansible.builtin.debug:
+        var: ufw_before.stdout_lines
+
+    - name: Stop and disable the remote-access server
+      ansible.builtin.shell:
+        cmd: |
+          set -eu
+          for u in {{ server_units | join(' ') }}; do
+            if systemctl is-enabled --quiet "$u" 2>/dev/null || systemctl is-active --quiet "$u"; then
+              systemctl disable --now "$u" 2>/dev/null
+              echo "disabled $u"
+            fi
+          done
+      register: units
+      changed_when: units.stdout is search('disabled')
+
+    # Delete every rule naming 1194/udp or tun0 (IPv4 and IPv6 forms), one
+    # at a time because ufw renumbers after each delete. s2s0 rules, the
+    # LAN rule and the defaults are not matched.
+    - name: Remove the remote-access and perimeter ufw rules
+      ansible.builtin.shell:
+        cmd: |
+          set -eu
+          while n=$(ufw status numbered | grep -E '1194/udp|on tun0' | head -n1 \
+                    | sed -nE 's/^\[ *([0-9]+)\].*/\1/p'); [ -n "$n" ]; do
+            ufw status numbered | sed -nE "s/^\[ *$n\] +(.*)/removed: \1/p"
+            ufw --force delete "$n" >/dev/null
+          done
+        executable: /bin/bash
+      register: removed
+      changed_when: removed.stdout is search('removed:')
+
+    - name: Show removed rules (journal; the perimeter ruleset as deployed)
+      ansible.builtin.debug:
+        var: removed.stdout_lines
+
+    # kyl191.openvpn writes its NAT block under Ansible's default marker.
+    # Remove it only if it is that block (the remote-access range).
+    - name: Read /etc/ufw/before.rules
+      ansible.builtin.slurp:
+        src: /etc/ufw/before.rules
+      register: before_rules
+
+    - name: Find the remote-access NAT block
+      ansible.builtin.set_fact:
+        vpn_nat_block: >-
+          {{ (before_rules.content | b64decode)
+             | regex_search('# BEGIN ANSIBLE MANAGED BLOCK\n(?:.*\n)*?# END ANSIBLE MANAGED BLOCK')
+             | default('', true) }}
+
+    - name: The default-marker block must be the remote-access NAT
+      ansible.builtin.assert:
+        that:
+          - vpn_nat_block is search('-A POSTROUTING -s ' ~ vpn_server_network ~ ' ')
+          - vpn_nat_block is not search('s2s|10\.100\.')
+        fail_msg: "Unexpected content under the default Ansible marker in before.rules; not removing it."
+        quiet: true
+      when: vpn_nat_block | length > 0
+
+    - name: Remove the remote-access NAT block
+      ansible.builtin.blockinfile:
+        path: /etc/ufw/before.rules
+        state: absent
+      when: vpn_nat_block | length > 0
+      notify: Reload ufw
+
+    - name: Apply the firewall change now
+      ansible.builtin.meta: flush_handlers
+
+    # --- Checks -------------------------------------------------------------
+    - name: Collect state
+      ansible.builtin.shell:
+        cmd: |
+          echo "server_active=$(systemctl is-active openvpn-server@openvpn_udp_1194 2>/dev/null || true)"
+          echo "udp1194_listeners=$(ss -Hlun 'sport = :1194' | wc -l)"
+          echo "tun0_present=$(ip link show tun0 >/dev/null 2>&1 && echo yes || echo no)"
+          echo "vpn_rules_left=$(ufw status | grep -cE '1194/udp|on tun0' || true)"
+          echo "vpn_nat_left=$(grep -c -- '-s {{ vpn_server_network }}' /etc/ufw/before.rules || true)"
+          echo "routed_default=$(ufw status verbose | grep -oE '[a-z]+ \(routed\)')"
+          echo "s2s_active=$(systemctl is-active {{ s2s_unit }} 2>/dev/null || true)"
+          echo "s2s_route=$(ip -4 route show 10.100.0.0/16 | grep -c 's2s0' || true)"
+          echo "ip_forward=$(sysctl -n net.ipv4.ip_forward)"
+        executable: /bin/bash
+      register: state_raw
+      changed_when: false
+
+    - name: Remote access gone; site-to-site and forwarding intact
+      vars:
+        state: "{{ dict(state_raw.stdout_lines | map('split', '=', 1)) }}"
+      ansible.builtin.assert:
+        that:
+          - state.server_active != 'active'
+          - state.udp1194_listeners == '0'
+          - state.tun0_present == 'no'
+          - state.vpn_rules_left == '0'
+          - state.vpn_nat_left == '0'
+          - state.routed_default == 'deny (routed)'
+          - state.s2s_active == 'active'
+          - state.s2s_route != '0'
+          - state.ip_forward == '1'
+        success_msg: "state: {{ state | to_json }}"
+        fail_msg: "state: {{ state | to_json }}"
+
+    - name: aws-app still answers through the site-to-site tunnel
+      ansible.builtin.uri:
+        url: "{{ aws_app_url }}"
+      register: aws_app
+      until: aws_app.status == 200
+      retries: 6
+      delay: 5
+
+    - name: Record ufw state after (journal)
+      ansible.builtin.command: ufw status verbose
+      register: ufw_after
+      changed_when: false
+
+    - name: Show ufw state after
+      ansible.builtin.debug:
+        var: ufw_after.stdout_lines
+
+- name: IdP path still works (control machine, when LAB_EDGE_IP is set)
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    lab_edge_ip: "{{ lookup('env', 'LAB_EDGE_IP') }}"
+    issuer: "https://idp.{{ lab_edge_ip | replace('.', '-') }}.sslip.io/realms/lab"
+  tasks:
+    - name: Discovery document through the edge host
+      ansible.builtin.uri:
+        url: "{{ issuer }}/.well-known/openid-configuration"
+      register: discovery
+      when: lab_edge_ip | length > 0
+
+    - name: Issuer unchanged
+      ansible.builtin.assert:
+        that: discovery.json.issuer == issuer
+        quiet: true
+      when: lab_edge_ip | length > 0
