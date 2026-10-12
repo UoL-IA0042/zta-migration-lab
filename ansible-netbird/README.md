@@ -159,31 +159,39 @@ netbirdio/tap/netbird`, or the installer from pkgs.netbird.io), then
 version (`netbird version`). Ziti Desktop Edge and every OpenVPN client
 must be off: all three capture 10.0.0.73.
 
-First login per role (home Wi-Fi), then the access model:
+First login for all four roles (home Wi-Fi), then the access model once:
 
-1. Create and select the role's profile, and log in with `--no-browser`:
+1. For each role, create and select its profile, and log in with
+   `--no-browser`:
    ```bash
    netbird down
    netbird profile add remote-admin        # once per role
    netbird profile select remote-admin
    netbird up --no-browser --management-url "https://netbird.${LAB_EDGE_IP//./-}.sslip.io" --hostname mac-remote-admin
    ```
-2. Open the printed URL in a **private browser window** and choose
-   **Keycloak** (not the email/password form, which is the bootstrap
-   admin), then log in as the role. A normal window can silently reuse an
-   earlier session, NetBird's (the dashboard admin) or Keycloak's (the
-   previous role), and register the Mac as the wrong user.
-   Check on the edge host that `/api/users` lists
-   `<role>@lab.example.com` and `/api/groups` a `<role>` group with
-   `issued: "jwt"`. A wrongly registered peer: `netbird deregister` in
-   that profile, then log in again.
-3. `netbird down` (on home Wi-Fi the client's routes would capture
-   10.0.0.73 and break Ansible against tpi2-3), then from `ansible-netbird/`:
+   `profile add` warns if the name exists; then select by ID
+   (`netbird profile list --show-id`) instead of adding another.
+2. **Quit the browser first** (Cmd-Q), then open the printed URL in a new
+   private window and choose **Keycloak** (not the email/password form,
+   which is the bootstrap admin). Keycloak must ask for a username and
+   password; if it goes straight through, an earlier session is still
+   alive and the Mac would register as that user. Private windows share
+   one session while any of them is open, so a private window alone is
+   not enough between roles.
+   Check on the edge host: `/api/users` lists `<role>@lab.example.com`,
+   `/api/groups` a `<role>` group with `issued: "jwt"`, and the role's
+   peer in `/api/peers` has a `user_id` of its own. A wrongly registered
+   peer: `netbird deregister` in that profile, quit the browser, log in
+   again.
+3. After the last role, `netbird down` (on home Wi-Fi the client's routes
+   would capture 10.0.0.73 and break Ansible against tpi2-3), then from
+   `ansible-netbird/`:
    ```bash
    ansible-playbook -i inventory.yaml access-model.yaml
    ```
-   The role is no longer listed as missing, and its policies are created
-   or updated. Commit `policies-export.json` with the journal.
+   No role is listed as missing, and all six policies are created. Commit
+   `policies-export.json` with the journal. A role added later: log in,
+   re-run, and the policies are updated.
 
 Per role, for matrix runs (hotspot):
 
