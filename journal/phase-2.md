@@ -256,6 +256,9 @@ Re-ran the `ansible-openziti` playbook and confirmed there were no changes.
 ## 2026-10-11 13:45-14:45 | phase-2 | openziti | testing
 Ziti Desktop Edge version = 2.59
 
+- Defect: Ziti Desktop Edge's External Auth button stayed disabled after the identity was added, so the Keycloak login could not start. Cause: Ziti Desktop Edge 2.59 for macOS, not investigated further. Fix: workaround, quit and restart the app.
+- Defect: re-adding the identity for the next role (`remote-developer`) by its URL failed with a TLS error. Cause: not determined. Fix: workaround, add each identity from its network JWT.
+
 `remote-admin` run of `test-matrix` was successful.
 
 
@@ -327,6 +330,10 @@ Some results are being excluded because it is a result of restting the environme
 
 Resetting the environment took a little more work than expected, but it is now clean and the baseline `test-matrix` results are recorded.
 
+- Defect: SSH and Ansible to tpi2-3 failed with `Connection refused` during the reset. Cause: Ziti Desktop Edge was still running, and its route (`utun4`) captured 10.0.0.73. Fix: quit Ziti Desktop Edge.
+- Defect: the Phase 1 re-check failed for `remote-admin` (6 FAIL, timeouts; CSV excluded). Cause: a stale `sudo openvpn` client from an earlier session, holding the old PKI, kept retrying alongside the new one. Fix: killed the stale process; the new connection completed after a delay.
+- Defect: `idp-path.yaml` got HTTP 502 for the issuer's discovery document. Cause: the site-to-site tunnel was down, because `openvpn.yaml` had not been re-run on the reset tpi2-4. Fix: re-ran `openvpn.yaml`.
+
 Deploying Netbird from `ansible-netbird` playbook.
 
 ```
@@ -384,6 +391,8 @@ ok: [nb-edge] => {
 
 The first run enrolled both routing peers (client 0.80.0, so the package version string was fine). Its final check then failed on the name mismatch, a defect fixed in 4a14645.
 
+- Defect: the routing-peer check in `site.yaml` failed although both peers were connected. Cause: it matched the API's `hostname` (the OS hostname) instead of the peer `name` set by `--hostname`; the bootstrap had the same bug and would have enrolled `nb-edge` a second time on a re-run. Fix: match on `name` (4a14645).
+
 Verified `ufw` and `iptables` look correct. Decommissioned the OpenVPN clients.
 
 ```
@@ -399,7 +408,11 @@ Profile switched to: 86da00cf
 ## 2026-10-11 16:45-18:30 | phase-2 | netbird | deployment
 First login as `remote-admin`, from the profile created above.
 
+- Defect: `netbird up` on the Mac failed with `DeadlineExceeded`. Cause: the edge IP was mistyped in the management URL. Fix: build the URL from `LAB_EDGE_IP` (`${LAB_EDGE_IP//./-}`).
+
 The first attempt registered the Mac as `nb-admin`, not `remote-admin`: `netbird up` opened the default browser, which still had the dashboard admin's NetBird session, so the login never reached Keycloak and no JWT group was created. Deregistered the peer (`netbird deregister`) and changed the runbook (8b6c990): log in with `netbird up --no-browser`, open the printed URL in a private window, and choose Keycloak.
+
+- Defect: the first `remote-admin` login registered the Mac as `nb-admin`. Cause: `netbird up` opened the default browser, which reused the dashboard admin's NetBird session, so the login never reached Keycloak. Fix: `netbird deregister`, then log in with `--no-browser` in a private window (8b6c990).
 
 The second attempt went through Keycloak and the client reported `Login successful` and `Connected`, but `netbird status` showed `Networks: -`. The `remote-admin` matrix (hotspot) had 6 FAIL, all timeouts; the CSV is excluded (`results/excluded/`). Re-running `access-model.yaml` still listed every role as missing, and the admin API showed only `nb-admin` in `/api/users` and only `All`, `routers-lab` and `routers-aws` in `/api/groups`. The Keycloak connector itself was configured correctly (`/api/identity-providers`).
 
@@ -411,6 +424,8 @@ Deviation found in implementation (NetBird v0.80.0 source):
 - Accounts cannot be merged, so the deployment had to be wiped.
 
 Fix (47c70e9): after the bootstrap, `site.yaml` checks the store and, on a fresh install, stops the server, writes the single-account domain into the owner's account, and starts it again, before any user can log in. It stops with a pointer to the README if more than one account exists. The routing peers now run `netbird down` before enrolling, so they enroll again after a wipe. This is another case where the headless, configuration-as-code deployment needed a workaround that an interactive deployment would not.
+
+- Defect: the `remote-admin` user and the Mac's peer landed in a second NetBird account, invisible to the admin token and outside every network and policy (matrix 6 FAIL, timeouts; CSV excluded). Cause: `POST /api/setup` creates the owner's account without the single-account domain, so single account mode found no account for the first Keycloak login. Fix: `site.yaml` writes the domain into the owner's account before any login (47c70e9); server state wiped and redeployed.
 
 Wiped the server state (secrets and Keycloak kept) and redeployed:
 ```
@@ -505,6 +520,8 @@ First logins for all four roles on home Wi-Fi, then the access model once, so al
 
 Adding the `remote-admin` profile again warned that the name already existed: the profile from before the wipe was still there. Selected the new profile by ID and removed the old one (`netbird profile list --show-id`, `select`, `remove`).
 
+- Defect: `netbird profile add remote-admin` created a second profile with the same name, so `select` by name failed. Cause: the profile from before the wipe was still on the Mac. Fix: selected the new profile by ID and removed the old one.
+
 `remote-admin` logged in through Keycloak and joined the owner's account this time:
 ```
 $ sudo curl -s -H "Authorization: Token $T" $A/users | jq '.[] | {email, role}'
@@ -518,6 +535,8 @@ $ sudo curl -s -H "Authorization: Token $T" $A/groups | jq '.[] | {name, issued}
 ```
 
 The `remote-developer` login registered as `remote-admin`: `mac-remote-developer` had the same `user_id` as `mac-remote-admin` in `/api/peers`, and no new user or group appeared. Keycloak had reused the `remote-admin` session even in a private window, because private windows share one session while any of them is open. Fix: `netbird deregister` in that profile, quit the browser (Cmd-Q), log in again in a new private window, and check that Keycloak asks for the password. Developer, analyst and contractor then each registered as their own user, with a peer `user_id` of their own and a `<role>` group with `issued: "jwt"`. Runbook updated (48f34ad): quit the browser between roles, and check the password prompt and each peer's `user_id`.
+
+- Defect: the `remote-developer` login registered the Mac as `remote-admin`. Cause: private browser windows share one Keycloak session while any of them is open. Fix: `netbird deregister`, quit the browser, log in again; runbook updated (48f34ad).
 
 ```
 TASK [Show access-model changes and pending roles (journal these)] *********************************************************************************************************
@@ -559,6 +578,8 @@ real	0m0.428s
 ```
 Connections were consistently fast, and disabling GSSAPI changed nothing, so it was not client-side Kerberos or DNS. The re-run passed 8/8. The first `psql` connection of a run was slow in two of the four first-pass runs:
 
+- Defect: the analyst's `postgres read` timed out (matrix FAIL) although the network allowed it. Cause: not determined; the first `psql` connection of a run was intermittently slow (6.6 s, and over the 10 s limit), while manual checks were consistently fast. Fix: none; the re-run passed, and both CSVs are kept.
+
 | run | postgres read | postgres write |
 |---|---|---|
 | remote-admin | 476 ms | 492 ms |
@@ -594,6 +615,8 @@ Aggregate results (excluding `results/excluded/`):
 `remote-admin` run of `perf-battery`, profile `remote-admin`, on the hotspot.
 
 The first lab run left out `--iperf-server`, so it has HTTP latency only and no throughput rows; it is excluded (`perf-battery/results/excluded/phase-2-netbird_netbird_20261012T020151Z_9ee1d019e8ff.csv`) and the lab path was re-run with both tests.
+
+- Defect: the first lab perf run had no throughput results. Cause: `run_perf.py` was run without `--iperf-server`. Fix: re-ran the lab path with both tests; the first CSV is excluded.
 
 Ping test and CSV file name for lab performance testing
 ```
