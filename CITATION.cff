@@ -4,15 +4,12 @@ type: software
 title: "ZTA Migration Lab: experimental infrastructure for VPN to
   zero-trust architecture migration research"
 authors:
-  - family-names: "CHANGE-ME"        # your surname
-    given-names: "<redacted>"
-    email: "<redacted>"
-    orcid: "https://orcid.org/CHANGE-ME"   # remove line if none yet
-version: 0.1.0
-date-released: "2026-09-05"
+  - name: "UoL IA0042"
+version: 1.0.0
+date-released: "2026-10-11"
 license: MIT
-repository-code: "https://github.com/CHANGE-ME/zta-migration-lab"
-# doi: 10.5281/zenodo.CHANGE-ME     # uncomment after first Zenodo deposit
+repository-code: "https://github.com/UoL-IA0042/zta-migration-lab"
+# doi: 10.5281/zenodo.CHANGE-ME     # version DOI, uncomment after the Zenodo deposit
 keywords:
   - zero-trust architecture
   - ZTNA

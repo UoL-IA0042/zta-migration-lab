@@ -28,5 +28,8 @@ __pycache__/
 # Git config
 .gitconfig
 
+# Personal identifiers for the export scanner: local only, never committed
+scripts/anonymize_blocklist.txt
+
 # NOTE: test-matrix/results/*.csv are deliberately NOT ignored — they are
 # research data and belong in version control.

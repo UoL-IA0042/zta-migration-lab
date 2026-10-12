@@ -51,8 +51,8 @@ and recorded in the journal.
 - **Phase tags.** Each experimental phase is a signed tag
   (`phase-0-infrastructure`, `phase-1-baseline`, `phase-2-openziti`,
   `phase-2-netbird`). Every result in the
-  dissertation traces to the tag that produced it. Tags are deposited to
-  Zenodo via the GitHub integration; cite the version DOI.
+  dissertation traces to the tag that produced it. The archive is a
+  GitHub release deposited to Zenodo; cite its version DOI.
 - **Reproducibility.** Every experiment starts from a clean state: nodes
   re-flashed via the Turing Pi BMC, environments rebuilt from this repo
   at the relevant tag. No configuration exists outside version control.
@@ -74,19 +74,17 @@ ansible-playbook -i inventory.yaml <playbook>.yaml
 
 See each component's README for specifics and pre-run checks.
 
-## Anonymized review
+## Pseudonymity
 
-The accompanying dissertation is anonymized during submission. Reviewer
--facing copies of this repository are produced with
-`scripts/anonymize_export.sh` (no git history, no CITATION.cff, scanned
-against an identifier blocklist); the LICENSE names "The Author(s)"
-accordingly. Full attribution and the Zenodo DOI are restored in the
-post-review archived release. See `docs/anonymization.md`.
+The repository is permanently pseudonymous: author, committer and
+copyright holder are "UoL IA0042" / "The Author(s)", and no release is
+ever attributed. A history-free review archive can be produced with
+`scripts/anonymize_export.sh`. See `docs/anonymization.md`.
 
 ## Citation
 
-See `CITATION.cff` (attributed release only). Archived releases:
-Zenodo DOI (added after first deposit).
+See `CITATION.cff`. Archived on Zenodo under the pseudonym; the version
+DOI is added to `CITATION.cff` after the deposit.
 
 ## License
 
