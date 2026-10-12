@@ -1,0 +1,260 @@
+[
+  {
+    "description": "intranet-web for remote-admin, remote-developer, remote-analyst, remote-contractor",
+    "enabled": true,
+    "id": "db63o4vnf72s73a0bdug",
+    "name": "intranet-web",
+    "rules": [
+      {
+        "action": "accept",
+        "bidirectional": false,
+        "description": "10.0.0.73:8080",
+        "destinationResource": {
+          "id": "db63bannf72s7391bj8g",
+          "type": "host"
+        },
+        "destinations": null,
+        "enabled": true,
+        "id": "db63o4vnf72s73a0bdug",
+        "name": "intranet-web",
+        "ports": [
+          "8080"
+        ],
+        "protocol": "tcp",
+        "sources": [
+          {
+            "id": "db63ennnf72s73a0b8ug",
+            "name": "remote-admin",
+            "peers_count": 1,
+            "resources_count": 0
+          },
+          {
+            "id": "db63l87nf72s73a0bc50",
+            "name": "remote-developer",
+            "peers_count": 1,
+            "resources_count": 0
+          },
+          {
+            "id": "db63md7nf72s73a0bcq0",
+            "name": "remote-analyst",
+            "peers_count": 1,
+            "resources_count": 0
+          },
+          {
+            "id": "db63n57nf72s73a0bdbg",
+            "name": "remote-contractor",
+            "peers_count": 1,
+            "resources_count": 0
+          }
+        ]
+      }
+    ],
+    "source_posture_checks": null
+  },
+  {
+    "description": "file-service for remote-admin, remote-developer, remote-analyst",
+    "enabled": true,
+    "id": "db63o4vnf72s73a0be00",
+    "name": "file-service",
+    "rules": [
+      {
+        "action": "accept",
+        "bidirectional": false,
+        "description": "10.0.0.73:445",
+        "destinationResource": {
+          "id": "db63bannf72s7391bj8g",
+          "type": "host"
+        },
+        "destinations": null,
+        "enabled": true,
+        "id": "db63o4vnf72s73a0be00",
+        "name": "file-service",
+        "ports": [
+          "445"
+        ],
+        "protocol": "tcp",
+        "sources": [
+          {
+            "id": "db63ennnf72s73a0b8ug",
+            "name": "remote-admin",
+            "peers_count": 1,
+            "resources_count": 0
+          },
+          {
+            "id": "db63l87nf72s73a0bc50",
+            "name": "remote-developer",
+            "peers_count": 1,
+            "resources_count": 0
+          },
+          {
+            "id": "db63md7nf72s73a0bcq0",
+            "name": "remote-analyst",
+            "peers_count": 1,
+            "resources_count": 0
+          }
+        ]
+      }
+    ],
+    "source_posture_checks": null
+  },
+  {
+    "description": "postgres for remote-admin, remote-developer, remote-analyst",
+    "enabled": true,
+    "id": "db63o4vnf72s73a0be1g",
+    "name": "postgres",
+    "rules": [
+      {
+        "action": "accept",
+        "bidirectional": false,
+        "description": "10.0.0.73:5432",
+        "destinationResource": {
+          "id": "db63bannf72s7391bj8g",
+          "type": "host"
+        },
+        "destinations": null,
+        "enabled": true,
+        "id": "db63o4vnf72s73a0be1g",
+        "name": "postgres",
+        "ports": [
+          "5432"
+        ],
+        "protocol": "tcp",
+        "sources": [
+          {
+            "id": "db63ennnf72s73a0b8ug",
+            "name": "remote-admin",
+            "peers_count": 1,
+            "resources_count": 0
+          },
+          {
+            "id": "db63l87nf72s73a0bc50",
+            "name": "remote-developer",
+            "peers_count": 1,
+            "resources_count": 0
+          },
+          {
+            "id": "db63md7nf72s73a0bcq0",
+            "name": "remote-analyst",
+            "peers_count": 1,
+            "resources_count": 0
+          }
+        ]
+      }
+    ],
+    "source_posture_checks": null
+  },
+  {
+    "description": "legacy-service for remote-admin",
+    "enabled": true,
+    "id": "db63o4vnf72s73a0be30",
+    "name": "legacy-service",
+    "rules": [
+      {
+        "action": "accept",
+        "bidirectional": false,
+        "description": "10.0.0.73:8023",
+        "destinationResource": {
+          "id": "db63bannf72s7391bj8g",
+          "type": "host"
+        },
+        "destinations": null,
+        "enabled": true,
+        "id": "db63o4vnf72s73a0be30",
+        "name": "legacy-service",
+        "ports": [
+          "8023"
+        ],
+        "protocol": "tcp",
+        "sources": [
+          {
+            "id": "db63ennnf72s73a0b8ug",
+            "name": "remote-admin",
+            "peers_count": 1,
+            "resources_count": 0
+          }
+        ]
+      }
+    ],
+    "source_posture_checks": null
+  },
+  {
+    "description": "aws-app for remote-admin, remote-developer, remote-analyst",
+    "enabled": true,
+    "id": "db63o4vnf72s73a0be4g",
+    "name": "aws-app",
+    "rules": [
+      {
+        "action": "accept",
+        "bidirectional": false,
+        "description": "10.100.10.10:8080",
+        "destinationResource": {
+          "id": "db63bannf72s7391bjgg",
+          "type": "host"
+        },
+        "destinations": null,
+        "enabled": true,
+        "id": "db63o4vnf72s73a0be4g",
+        "name": "aws-app",
+        "ports": [
+          "8080"
+        ],
+        "protocol": "tcp",
+        "sources": [
+          {
+            "id": "db63ennnf72s73a0b8ug",
+            "name": "remote-admin",
+            "peers_count": 1,
+            "resources_count": 0
+          },
+          {
+            "id": "db63l87nf72s73a0bc50",
+            "name": "remote-developer",
+            "peers_count": 1,
+            "resources_count": 0
+          },
+          {
+            "id": "db63md7nf72s73a0bcq0",
+            "name": "remote-analyst",
+            "peers_count": 1,
+            "resources_count": 0
+          }
+        ]
+      }
+    ],
+    "source_posture_checks": null
+  },
+  {
+    "description": "perf-iperf3 for remote-admin",
+    "enabled": true,
+    "id": "db63o4vnf72s73a0be60",
+    "name": "perf-iperf3",
+    "rules": [
+      {
+        "action": "accept",
+        "bidirectional": false,
+        "description": "10.0.0.73:5201",
+        "destinationResource": {
+          "id": "db63bannf72s7391bj8g",
+          "type": "host"
+        },
+        "destinations": null,
+        "enabled": true,
+        "id": "db63o4vnf72s73a0be60",
+        "name": "perf-iperf3",
+        "ports": [
+          "5201"
+        ],
+        "protocol": "tcp",
+        "sources": [
+          {
+            "id": "db63ennnf72s73a0b8ug",
+            "name": "remote-admin",
+            "peers_count": 1,
+            "resources_count": 0
+          }
+        ]
+      }
+    ],
+    "source_posture_checks": null
+  }
+]

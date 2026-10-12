@@ -1,0 +1,9 @@
+run_id,timestamp_utc,phase,role,resource,operation,probe_type,expected,observed,result,latency_ms,detail
+82671de0f93e,2026-10-12T01:55:52+00:00,phase-2-netbird,remote-contractor,intranet-web,read,http,allow,allow,PASS,609,HTTP 200
+82671de0f93e,2026-10-12T01:56:02+00:00,phase-2-netbird,remote-contractor,file-service,connect,tcp,deny,deny,PASS,10004,timeout
+82671de0f93e,2026-10-12T01:56:12+00:00,phase-2-netbird,remote-contractor,postgres,read,exec,deny,deny,PASS,10015,timeout
+82671de0f93e,2026-10-12T01:56:22+00:00,phase-2-netbird,remote-contractor,postgres,write,exec,deny,deny,PASS,10011,timeout
+82671de0f93e,2026-10-12T01:56:32+00:00,phase-2-netbird,remote-contractor,legacy-service,connect,tcp,deny,deny,PASS,10003,timeout
+82671de0f93e,2026-10-12T01:56:33+00:00,phase-2-netbird,remote-contractor,aws-s3-data,read,exec,deny,deny,PASS,627,"exit 254: aws: [ERROR]: An error occurred (AccessDenied) when calling the GetObject operation: User: arn:aws:iam::<account-id>:user/remote-contractor is not authorized to perform: s3:GetObject on resource: ""arn"
+82671de0f93e,2026-10-12T01:56:33+00:00,phase-2-netbird,remote-contractor,aws-s3-data,write,exec,deny,deny,PASS,551,"exit 254: aws: [ERROR]: An error occurred (AccessDenied) when calling the PutObject operation: User: arn:aws:iam::<account-id>:user/remote-contractor is not authorized to perform: s3:PutObject on resource: ""arn"
+82671de0f93e,2026-10-12T01:56:43+00:00,phase-2-netbird,remote-contractor,aws-app,read,http,deny,deny,PASS,10003,connection failed: timed out

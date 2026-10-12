@@ -1,0 +1,9 @@
+run_id,timestamp_utc,phase,role,resource,operation,probe_type,expected,observed,result,latency_ms,detail
+026eabe71dec,2026-10-12T01:49:38+00:00,phase-2-netbird,remote-developer,intranet-web,read,http,allow,allow,PASS,490,HTTP 200
+026eabe71dec,2026-10-12T01:49:39+00:00,phase-2-netbird,remote-developer,file-service,connect,tcp,allow,allow,PASS,143,connected
+026eabe71dec,2026-10-12T01:49:45+00:00,phase-2-netbird,remote-developer,postgres,read,exec,allow,allow,PASS,6664,exit 0
+026eabe71dec,2026-10-12T01:49:46+00:00,phase-2-netbird,remote-developer,postgres,write,exec,allow,allow,PASS,428,exit 0
+026eabe71dec,2026-10-12T01:49:56+00:00,phase-2-netbird,remote-developer,legacy-service,connect,tcp,deny,deny,PASS,10003,timeout
+026eabe71dec,2026-10-12T01:49:56+00:00,phase-2-netbird,remote-developer,aws-s3-data,read,exec,allow,allow,PASS,642,exit 0
+026eabe71dec,2026-10-12T01:49:57+00:00,phase-2-netbird,remote-developer,aws-s3-data,write,exec,deny,deny,PASS,570,"exit 254: aws: [ERROR]: An error occurred (AccessDenied) when calling the PutObject operation: User: arn:aws:iam::<account-id>:user/remote-developer is not authorized to perform: s3:PutObject on resource: ""arn:"
+026eabe71dec,2026-10-12T01:49:57+00:00,phase-2-netbird,remote-developer,aws-app,read,http,allow,allow,PASS,316,HTTP 200

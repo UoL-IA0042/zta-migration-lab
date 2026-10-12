@@ -303,3 +303,325 @@ Aggregate results:
 | phase-2-openziti | remote-analyst | 8 | 0 | 0 | 100.0% |
 | phase-2-openziti | remote-contractor | 8 | 0 | 0 | 100.0% |
 | phase-2-openziti | remote-developer | 8 | 0 | 0 | 100.0% |
+
+## 2026-10-11 15:00-16:45 | phase-2 | netbird | deployment
+As part of the next Phase 2 deployment of netbird, resources from the previous Phase 2 deployment of openziti need to be reset.
+
+Steps to reset the deployment environment:
+1. Destory the current resources managed by terraform
+2. Reset the relevant nodes back to a known state from the `node-reset/` playbooks
+3. Verify keycloak is back to its private issuer with the following command
+```
+   curl -s http://10.0.0.72:8080/realms/lab/.well-known/openid-configuration | jq -r .issuer
+```
+expecting the following response `http://10.0.0.72:8080/realms/lab`
+4. Redeploy OpenVPN from `ansible-openvpn/`
+5. Re-add the port-forward for OpenVPN
+6. Turn Ziti Desktop Edge off and remove its identity, then import the new OpenVPN profiles from ~/ovpn-client-configs/
+7. Re-check the Phase 1 matrix, on the hotspot, all four roles, from `test-matrix/`. Results go in a separate folder so they don’t mix with the Phase 1 data
+
+Caddy image hash
+`sha256:f2a1290d0463aad60660d4ec134943f183ee2a5f6c3eb7bf32dd984f2f020772`
+
+Some results are being excluded because it is a result of restting the environment for the next experiments with netbird.
+
+Resetting the environment took a little more work than expected, but it is now clean and the baseline `test-matrix` results are recorded.
+
+Deploying Netbird from `ansible-netbird` playbook.
+
+```
+TASK [Show bootstrap changes] ******************************************************************************************************************************
+ok: [nb-edge] => {
+    "bootstrap.stdout_lines": [
+        "created owner nb-admin@lab.example.com and API token",
+        "created identity-provider keycloak",
+        "updated account settings",
+        "deleted policy Default (all peers to all peers)",
+        "created network lab",
+        "created group routers-lab",
+        "created resource lab-workloads",
+        "created router for lab via group routers-lab",
+        "created network aws",
+        "created group routers-aws",
+        "created resource aws-app",
+        "created router for aws via group routers-aws",
+        "created setup-key for lab node",
+        "created setup-key for AWS node",
+        "bootstrap complete"
+    ]
+}
+
+TASK [Show image digests] **************************************************************************************************************************************************
+ok: [nb-edge] => {
+    "digests.stdout_lines": [
+        "netbirdio/netbird-server@sha256:05b3d8d6d056e5062a2965d4d6e5d6d83f09f2bf9133947a8e5972e0e0e7a261",
+        "netbirdio/dashboard@sha256:70e0fc6dd3b7758148d182fb55ecd8d4f9ce01e9bba56c9389224e0b8354009d"
+    ]
+}
+
+TASK [Show the client version] *********************************************************************************************************************************************
+ok: [tpi2-4] => {
+    "nb_version.stdout": "0.80.0"
+}
+ok: [nb-edge] => {
+    "nb_version.stdout": "0.80.0"
+}
+
+TASK [Show access-model changes and pending roles] *********************************************************************************************************
+ok: [nb-edge] => {
+    "model.stdout_lines": [
+        "pending intranet-web (no role group has logged in yet)",
+        "pending file-service (no role group has logged in yet)",
+        "pending postgres (no role group has logged in yet)",
+        "pending legacy-service (no role group has logged in yet)",
+        "pending aws-app (no role group has logged in yet)",
+        "pending perf-iperf3 (no role group has logged in yet)",
+        "missing role groups (log in once as each, then re-run): remote-admin,remote-developer,remote-analyst,remote-contractor",
+        "access model complete"
+    ]
+}
+```
+
+The first run enrolled both routing peers (client 0.80.0, so the package version string was fine). Its final check then failed on the name mismatch, a defect fixed in 4a14645.
+
+Verified `ufw` and `iptables` look correct. Decommissioned the OpenVPN clients.
+
+```
+$ netbird version
+0.80.0
+$ netbird down
+Disconnected
+$ netbird profile add remote-admin && netbird profile select remote-admin
+Profile added: 86da00cf  remote-admin
+Profile switched to: 86da00cf
+```
+
+## 2026-10-11 16:45-18:30 | phase-2 | netbird | deployment
+First login as `remote-admin`, from the profile created above.
+
+The first attempt registered the Mac as `nb-admin`, not `remote-admin`: `netbird up` opened the default browser, which still had the dashboard admin's NetBird session, so the login never reached Keycloak and no JWT group was created. Deregistered the peer (`netbird deregister`) and changed the runbook (8b6c990): log in with `netbird up --no-browser`, open the printed URL in a private window, and choose Keycloak.
+
+The second attempt went through Keycloak and the client reported `Login successful` and `Connected`, but `netbird status` showed `Networks: -`. The `remote-admin` matrix (hotspot) had 6 FAIL, all timeouts; the CSV is excluded (`results/excluded/`). Re-running `access-model.yaml` still listed every role as missing, and the admin API showed only `nb-admin` in `/api/users` and only `All`, `routers-lab` and `routers-aws` in `/api/groups`. The Keycloak connector itself was configured correctly (`/api/identity-providers`).
+
+The server log gave the cause: gRPC streams for two account IDs, the bootstrap account (`db629vnnf72s73ektihg`, both routing peers) and a second one (`db62kdnnf72s73ektnbg`, the Mac). The Keycloak login had created a new, empty NetBird account for `remote-admin` instead of joining the admin's. The admin token only sees its own account, so the user, its group and the Mac's peer were invisible to it, and no network or policy applied to the Mac.
+
+Deviation found in implementation (NetBird v0.80.0 source):
+- Users join an existing account only through single account mode, which looks the account up by its domain (`netbird.selfhosted`, category private, primary for the domain).
+- The headless bootstrap creates the owner through `POST /api/setup` with an API token. That path provisions the account without a domain; only an interactive owner login would set it. So the first Keycloak user found no account for the domain and got one of its own.
+- Accounts cannot be merged, so the deployment had to be wiped.
+
+Fix (47c70e9): after the bootstrap, `site.yaml` checks the store and, on a fresh install, stops the server, writes the single-account domain into the owner's account, and starts it again, before any user can log in. It stops with a pointer to the README if more than one account exists. The routing peers now run `netbird down` before enrolling, so they enroll again after a wipe. This is another case where the headless, configuration-as-code deployment needed a workaround that an interactive deployment would not.
+
+Wiped the server state (secrets and Keycloak kept) and redeployed:
+```
+# edge host
+cd /opt/netbird && sudo docker compose down
+sudo rm -rf data/* admin.token enroll/*
+# Mac, ansible-netbird/
+netbird down
+ansible-playbook -i inventory.yaml --vault-password-file ../.vault-pass site.yaml
+```
+
+```
+TASK [Show bootstrap changes (journal these)] ******************************************************************************************************************************
+ok: [nb-edge] => {
+    "bootstrap.stdout_lines": [
+        "created owner nb-admin@lab.example.com and API token",
+        "created identity-provider keycloak",
+        "updated account settings",
+        "deleted policy Default (all peers to all peers)",
+        "created network lab",
+        "created group routers-lab",
+        "created resource lab-workloads 10.0.0.73/32",
+        "created router for lab via group routers-lab",
+        "created network aws",
+        "created group routers-aws",
+        "created resource aws-app 10.100.10.10/32",
+        "created router for aws via group routers-aws",
+        "created setup-key for tpi2-4",
+        "created setup-key for nb-edge",
+        "bootstrap complete"
+    ]
+}
+
+TASK [Account domain (journal this)] ***************************************************************************************************************************************
+ok: [nb-edge] => {
+    "msg": {
+        "accounts": 1,
+        "domain": "netbird.selfhosted",
+        "domain_category": "private",
+        "ok": true,
+        "primary": true
+    }
+}
+
+TASK [Show image digests] **************************************************************************************************************************************************
+ok: [nb-edge] => {
+    "digests.stdout_lines": [
+        "netbirdio/netbird-server@sha256:05b3d8d6d056e5062a2965d4d6e5d6d83f09f2bf9133947a8e5972e0e0e7a261",
+        "netbirdio/dashboard@sha256:70e0fc6dd3b7758148d182fb55ecd8d4f9ce01e9bba56c9389224e0b8354009d"
+    ]
+}
+
+TASK [Show the client version] *********************************************************************************************************************************************
+ok: [tpi2-4] => {
+    "nb_version.stdout": "0.80.0"
+}
+ok: [nb-edge] => {
+    "nb_version.stdout": "0.80.0"
+}
+
+TASK [Peers (journal this)] ************************************************************************************************************************************************
+ok: [nb-edge] => {
+    "msg": [
+        ["nb-edge", true, "100.100.210.43", "0.80.0"],
+        ["tpi2-4", true, "100.100.51.207", "0.80.0"]
+    ]
+}
+
+TASK [Show access-model changes and pending roles (journal these)] *********************************************************************************************************
+ok: [nb-edge] => {
+    "model.stdout_lines": [
+        "pending intranet-web (no role group has logged in yet)",
+        "pending file-service (no role group has logged in yet)",
+        "pending postgres (no role group has logged in yet)",
+        "pending legacy-service (no role group has logged in yet)",
+        "pending aws-app (no role group has logged in yet)",
+        "pending perf-iperf3 (no role group has logged in yet)",
+        "missing role groups (log in once as each, then re-run): remote-admin,remote-developer,remote-analyst,remote-contractor",
+        "access model complete"
+    ]
+}
+
+PLAY RECAP *****************************************************************************************************************************************************************
+nb-edge                    : ok=46   changed=11   unreachable=0    failed=0    skipped=0    rescued=0    ignored=0
+tpi2-4                     : ok=13   changed=4    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0
+```
+
+The image digests are the same as in the first deployment, so the redeploy ran the same server and dashboard. Both routing peers enrolled again and connected, and the owner's account now carries the single-account domain before any role has logged in. The access model is back to all roles pending, as expected after a wipe; the `remote-admin` login is repeated next.
+
+## 2026-10-11 18:30-18:45 | phase-2 | netbird | deployment
+First logins for all four roles on home Wi-Fi, then the access model once, so all six policies are written with their final sources in one run and one `policies-export.json`.
+
+Adding the `remote-admin` profile again warned that the name already existed: the profile from before the wipe was still there. Selected the new profile by ID and removed the old one (`netbird profile list --show-id`, `select`, `remove`).
+
+`remote-admin` logged in through Keycloak and joined the owner's account this time:
+```
+$ sudo curl -s -H "Authorization: Token $T" $A/users | jq '.[] | {email, role}'
+{ "email": "nb-admin@lab.example.com", "role": "owner" }
+{ "email": "remote-admin@lab.example.com", "role": "user" }
+$ sudo curl -s -H "Authorization: Token $T" $A/groups | jq '.[] | {name, issued}'
+{ "name": "All", "issued": "api" }
+{ "name": "routers-lab", "issued": "api" }
+{ "name": "routers-aws", "issued": "api" }
+{ "name": "remote-admin", "issued": "jwt" }
+```
+
+The `remote-developer` login registered as `remote-admin`: `mac-remote-developer` had the same `user_id` as `mac-remote-admin` in `/api/peers`, and no new user or group appeared. Keycloak had reused the `remote-admin` session even in a private window, because private windows share one session while any of them is open. Fix: `netbird deregister` in that profile, quit the browser (Cmd-Q), log in again in a new private window, and check that Keycloak asks for the password. Developer, analyst and contractor then each registered as their own user, with a peer `user_id` of their own and a `<role>` group with `issued: "jwt"`. Runbook updated (48f34ad): quit the browser between roles, and check the password prompt and each peer's `user_id`.
+
+```
+TASK [Show access-model changes and pending roles (journal these)] *********************************************************************************************************
+ok: [nb-edge] => {
+    "model.stdout_lines": [
+        "created policy intranet-web sources remote-admin,remote-developer,remote-analyst,remote-contractor",
+        "created policy file-service sources remote-admin,remote-developer,remote-analyst",
+        "created policy postgres sources remote-admin,remote-developer,remote-analyst",
+        "created policy legacy-service sources remote-admin",
+        "created policy aws-app sources remote-admin,remote-developer,remote-analyst",
+        "created policy perf-iperf3 sources remote-admin",
+        "access model complete"
+    ]
+}
+```
+The policy sources match the dial table, and no role is missing. Policy set exported to `ansible-netbird/policies-export.json`.
+
+## 2026-10-11 18:45-19:00 | phase-2 | netbird | testing
+`test-matrix` runs on the hotspot, one role at a time: `netbird profile select <role> && netbird up`, pre-checks, matrix, `netbird down`. Every profile routed 10.0.0.73 through `utun100`.
+
+| role | result | CSV results file |
+|---|---|---|
+| remote-admin | 8/8 | phase-2-netbird_remote-admin_20261012T014834Z_cdb09e563521.csv |
+| remote-developer | 8/8 | phase-2-netbird_remote-developer_20261012T014957Z_026eabe71dec.csv |
+| remote-analyst | 7/8 | phase-2-netbird_remote-analyst_20261012T015111Z_8c98eef2fe6a.csv |
+| remote-analyst (re-run) | 8/8 | phase-2-netbird_remote-analyst_20261012T015458Z_0e4310cd6803.csv |
+| remote-contractor | 8/8 | phase-2-netbird_remote-contractor_20261012T015643Z_82671de0f93e.csv |
+
+The analyst failure was `postgres read`, expected allow, observed deny (timeout). It does not look like a policy decision: `postgres write` in the same run, a second later, reached the database and was refused by its grants (`permission denied for table probe_writes`), and the probes to 8080 and 445 just before it connected quickly. Checked by hand straight after, same profile:
+```
+$ nc -vz -G 5 10.0.0.73 5432
+Connection to 10.0.0.73 port 5432 [tcp/postgresql] succeeded!
+$ time psql -w -h 10.0.0.73 -U remote-analyst -d labdb -tAc 'SELECT 1'
+real	0m0.449s
+$ time psql -w -h 10.0.0.73 -U remote-analyst -d labdb -tAc 'SELECT 1'
+real	0m0.454s
+$ time PGGSSENCMODE=disable psql -w -h 10.0.0.73 -U remote-analyst -d labdb -tAc 'SELECT 1'
+real	0m0.428s
+```
+Connections were consistently fast, and disabling GSSAPI changed nothing, so it was not client-side Kerberos or DNS. The re-run passed 8/8. The first `psql` connection of a run was slow in two of the four first-pass runs:
+
+| run | postgres read | postgres write |
+|---|---|---|
+| remote-admin | 476 ms | 492 ms |
+| remote-developer | 6,664 ms (pass) | 428 ms |
+| remote-analyst | 10,014 ms (timeout) | 589 ms |
+| remote-analyst re-run | 459 ms | 432 ms |
+
+Phase 1 and OpenZiti `postgres read` were 449–1,080 ms for every role. Both analyst CSVs are kept in `results/`: the failure happened under the final configuration, so it is an observation, not a setup error.
+
+Some observations:
+* `netbird status -d` right after `netbird up` showed `Connection type: -` and no relay address for every peer, so the connection type (P2P or relayed) was not captured by the pre-checks. The status was read before any traffic; it has to be read after traffic (after the matrix or perf run).
+* The contractor's status listed only `tpi2-4`, not `nb-edge`. No contractor policy targets `aws-app`, so the AWS routing peer is not in the contractor's network map at all, and `aws-app` is a timeout deny. The other three roles list both routing peers.
+* NetBird adds `netbird.selfhosted` as a search domain to the Mac's resolver while up (routing peers run with `--disable-dns`; the Mac does not).
+* The S3 denies come from IAM, as in the other phases; S3 is reached over the internet, not the mesh.
+
+Aggregate results (excluding `results/excluded/`):
+| phase | role | pass | fail | error | rate |
+|---|---|---|---|---|---|
+| phase-1 | remote-admin | 8 | 0 | 0 | 100.0% |
+| phase-1 | remote-analyst | 8 | 0 | 0 | 100.0% |
+| phase-1 | remote-contractor | 8 | 0 | 0 | 100.0% |
+| phase-1 | remote-developer | 8 | 0 | 0 | 100.0% |
+| phase-2-netbird | remote-admin | 8 | 0 | 0 | 100.0% |
+| phase-2-netbird | remote-analyst | 15 | 1 | 0 | 93.8% |
+| phase-2-netbird | remote-contractor | 8 | 0 | 0 | 100.0% |
+| phase-2-netbird | remote-developer | 8 | 0 | 0 | 100.0% |
+| phase-2-openziti | remote-admin | 8 | 0 | 0 | 100.0% |
+| phase-2-openziti | remote-analyst | 8 | 0 | 0 | 100.0% |
+| phase-2-openziti | remote-contractor | 8 | 0 | 0 | 100.0% |
+| phase-2-openziti | remote-developer | 8 | 0 | 0 | 100.0% |
+
+## 2026-10-11 19:00-19:15 | phase-2 | netbird | testing
+`remote-admin` run of `perf-battery`, profile `remote-admin`, on the hotspot.
+
+The first lab run left out `--iperf-server`, so it has HTTP latency only and no throughput rows; it is excluded (`perf-battery/results/excluded/phase-2-netbird_netbird_20261012T020151Z_9ee1d019e8ff.csv`) and the lab path was re-run with both tests.
+
+Ping test and CSV file name for lab performance testing
+```
+$ ping -c 30 1.1.1.1 | tail -1
+round-trip min/avg/max/stddev = 30.111/45.109/91.343/19.436 ms
+
+phase-2-netbird_netbird_20261012T020714Z_f541779e0281.csv
+```
+
+CSV file name for AWS performance testing
+```
+phase-2-netbird_netbird-aws_20261012T020241Z_0165085a3a62.csv
+```
+
+Mean (standard deviation) over 5 reps, against the earlier paths:
+
+| path | throughput up (Mbps) | throughput down (Mbps) | HTTP p50 (ms) | HTTP max (ms) |
+|---|---|---|---|---|
+| vpn | 6.6 (3.7) | 26.0 (7.2) | 344.6 (442.3) | 1130.6 (1077.5) |
+| openziti | 2.2 (0.0) | 27.3 (6.9) | 260.2 (1.3) | 678.4 (464.7) |
+| netbird | 6.9 (2.9) | 30.5 (2.3) | 138.1 (6.1) | 203.4 (19.2) |
+| vpn-aws | | | 255.5 (30.6) | 803.6 (381.9) |
+| openziti-aws | | | 258.7 (3.7) | 347.6 (63.3) |
+| netbird-aws | | | 125.5 (1.6) | 191.7 (29.7) |
+
+Some observations:
+* On-prem latency is about half of OpenZiti's (p50 133–145 ms against 258–262 ms) and close to the VPN's good reps (128–176 ms), without the VPN's 1.1 s outliers. The worst sample in any NetBird rep was 225 ms.
+* The AWS path is about half of both the VPN and OpenZiti (p50 124–127 ms against 216–285 and 256–265 ms), and the steadiest of all paths.
+* Upload is not capped as it was on OpenZiti (about 2.2 Mbps in every rep): NetBird's 3.0–10.4 Mbps is in the VPN's range, with the spread that suggests hotspot variation rather than a fixed bottleneck. Download is the highest and steadiest of the three.
+* The connection type (P2P or relayed) was not recorded for these runs. The latencies are consistent with a direct WireGuard path from the Mac to each routing peer (to tpi2-4 at home and to the edge host in AWS), but that is not verified.
+

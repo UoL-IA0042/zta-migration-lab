@@ -1,0 +1,16 @@
+run_id,timestamp_utc,phase,path,test,rep,value,unit,detail
+9ee1d019e8ff,2026-10-12T02:01:18+00:00,phase-2-netbird,netbird,http_latency_p50,1,129.42,ms,n=50
+9ee1d019e8ff,2026-10-12T02:01:18+00:00,phase-2-netbird,netbird,http_latency_mean,1,136.07,ms,n=50
+9ee1d019e8ff,2026-10-12T02:01:18+00:00,phase-2-netbird,netbird,http_latency_max,1,313.28,ms,n=50
+9ee1d019e8ff,2026-10-12T02:01:26+00:00,phase-2-netbird,netbird,http_latency_p50,2,131.79,ms,n=50
+9ee1d019e8ff,2026-10-12T02:01:26+00:00,phase-2-netbird,netbird,http_latency_mean,2,132.60,ms,n=50
+9ee1d019e8ff,2026-10-12T02:01:26+00:00,phase-2-netbird,netbird,http_latency_max,2,181.04,ms,n=50
+9ee1d019e8ff,2026-10-12T02:01:35+00:00,phase-2-netbird,netbird,http_latency_p50,3,132.57,ms,n=50
+9ee1d019e8ff,2026-10-12T02:01:35+00:00,phase-2-netbird,netbird,http_latency_mean,3,139.02,ms,n=50
+9ee1d019e8ff,2026-10-12T02:01:35+00:00,phase-2-netbird,netbird,http_latency_max,3,223.00,ms,n=50
+9ee1d019e8ff,2026-10-12T02:01:43+00:00,phase-2-netbird,netbird,http_latency_p50,4,136.68,ms,n=50
+9ee1d019e8ff,2026-10-12T02:01:43+00:00,phase-2-netbird,netbird,http_latency_mean,4,141.58,ms,n=50
+9ee1d019e8ff,2026-10-12T02:01:43+00:00,phase-2-netbird,netbird,http_latency_max,4,333.06,ms,n=50
+9ee1d019e8ff,2026-10-12T02:01:51+00:00,phase-2-netbird,netbird,http_latency_p50,5,131.88,ms,n=50
+9ee1d019e8ff,2026-10-12T02:01:51+00:00,phase-2-netbird,netbird,http_latency_mean,5,133.61,ms,n=50
+9ee1d019e8ff,2026-10-12T02:01:51+00:00,phase-2-netbird,netbird,http_latency_max,5,159.15,ms,n=50

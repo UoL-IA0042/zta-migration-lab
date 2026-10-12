@@ -1,0 +1,9 @@
+run_id,timestamp_utc,phase,role,resource,operation,probe_type,expected,observed,result,latency_ms,detail
+bcf29248545e,2026-10-11T23:43:17+00:00,phase-1,remote-developer,intranet-web,read,http,allow,allow,PASS,340,HTTP 200
+bcf29248545e,2026-10-11T23:43:17+00:00,phase-1,remote-developer,file-service,connect,tcp,allow,allow,PASS,53,connected
+bcf29248545e,2026-10-11T23:43:18+00:00,phase-1,remote-developer,postgres,read,exec,allow,allow,PASS,449,exit 0
+bcf29248545e,2026-10-11T23:43:18+00:00,phase-1,remote-developer,postgres,write,exec,allow,allow,PASS,464,exit 0
+bcf29248545e,2026-10-11T23:43:18+00:00,phase-1,remote-developer,legacy-service,connect,tcp,allow,allow,PASS,75,connected
+bcf29248545e,2026-10-11T23:43:19+00:00,phase-1,remote-developer,aws-s3-data,read,exec,allow,allow,PASS,902,exit 0
+bcf29248545e,2026-10-11T23:43:20+00:00,phase-1,remote-developer,aws-s3-data,write,exec,deny,deny,PASS,610,"exit 254: aws: [ERROR]: An error occurred (AccessDenied) when calling the PutObject operation: User: arn:aws:iam::<account-id>:user/remote-developer is not authorized to perform: s3:PutObject on resource: ""arn:"
+bcf29248545e,2026-10-11T23:43:20+00:00,phase-1,remote-developer,aws-app,read,http,allow,allow,PASS,199,HTTP 200

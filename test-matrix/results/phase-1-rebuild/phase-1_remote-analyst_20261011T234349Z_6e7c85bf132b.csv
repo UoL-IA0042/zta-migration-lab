@@ -1,0 +1,9 @@
+run_id,timestamp_utc,phase,role,resource,operation,probe_type,expected,observed,result,latency_ms,detail
+6e7c85bf132b,2026-10-11T23:43:46+00:00,phase-1,remote-analyst,intranet-web,read,http,allow,allow,PASS,456,HTTP 200
+6e7c85bf132b,2026-10-11T23:43:46+00:00,phase-1,remote-analyst,file-service,connect,tcp,allow,allow,PASS,61,connected
+6e7c85bf132b,2026-10-11T23:43:47+00:00,phase-1,remote-analyst,postgres,read,exec,allow,allow,PASS,460,exit 0
+6e7c85bf132b,2026-10-11T23:43:47+00:00,phase-1,remote-analyst,postgres,write,exec,deny,deny,PASS,468,exit 1: ERROR:  permission denied for table probe_writes
+6e7c85bf132b,2026-10-11T23:43:47+00:00,phase-1,remote-analyst,legacy-service,connect,tcp,allow,allow,PASS,60,connected
+6e7c85bf132b,2026-10-11T23:43:48+00:00,phase-1,remote-analyst,aws-s3-data,read,exec,allow,allow,PASS,882,exit 0
+6e7c85bf132b,2026-10-11T23:43:49+00:00,phase-1,remote-analyst,aws-s3-data,write,exec,deny,deny,PASS,675,"exit 254: aws: [ERROR]: An error occurred (AccessDenied) when calling the PutObject operation: User: arn:aws:iam::<account-id>:user/remote-analyst is not authorized to perform: s3:PutObject on resource: ""arn:aw"
+6e7c85bf132b,2026-10-11T23:43:49+00:00,phase-1,remote-analyst,aws-app,read,http,allow,allow,PASS,203,HTTP 200

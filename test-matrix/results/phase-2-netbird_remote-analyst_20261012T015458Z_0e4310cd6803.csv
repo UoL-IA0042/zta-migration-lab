@@ -1,0 +1,9 @@
+run_id,timestamp_utc,phase,role,resource,operation,probe_type,expected,observed,result,latency_ms,detail
+0e4310cd6803,2026-10-12T01:54:46+00:00,phase-2-netbird,remote-analyst,intranet-web,read,http,allow,allow,PASS,238,HTTP 200
+0e4310cd6803,2026-10-12T01:54:46+00:00,phase-2-netbird,remote-analyst,file-service,connect,tcp,allow,allow,PASS,55,connected
+0e4310cd6803,2026-10-12T01:54:47+00:00,phase-2-netbird,remote-analyst,postgres,read,exec,allow,allow,PASS,459,exit 0
+0e4310cd6803,2026-10-12T01:54:47+00:00,phase-2-netbird,remote-analyst,postgres,write,exec,deny,deny,PASS,432,exit 1: ERROR:  permission denied for table probe_writes
+0e4310cd6803,2026-10-12T01:54:57+00:00,phase-2-netbird,remote-analyst,legacy-service,connect,tcp,deny,deny,PASS,10003,timeout
+0e4310cd6803,2026-10-12T01:54:58+00:00,phase-2-netbird,remote-analyst,aws-s3-data,read,exec,allow,allow,PASS,636,exit 0
+0e4310cd6803,2026-10-12T01:54:58+00:00,phase-2-netbird,remote-analyst,aws-s3-data,write,exec,deny,deny,PASS,735,"exit 254: aws: [ERROR]: An error occurred (AccessDenied) when calling the PutObject operation: User: arn:aws:iam::<account-id>:user/remote-analyst is not authorized to perform: s3:PutObject on resource: ""arn:aw"
+0e4310cd6803,2026-10-12T01:54:58+00:00,phase-2-netbird,remote-analyst,aws-app,read,http,allow,allow,PASS,134,HTTP 200

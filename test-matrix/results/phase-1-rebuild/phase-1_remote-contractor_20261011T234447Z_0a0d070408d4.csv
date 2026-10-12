@@ -1,0 +1,9 @@
+run_id,timestamp_utc,phase,role,resource,operation,probe_type,expected,observed,result,latency_ms,detail
+0a0d070408d4,2026-10-11T23:44:14+00:00,phase-1,remote-contractor,intranet-web,read,http,allow,allow,PASS,490,HTTP 200
+0a0d070408d4,2026-10-11T23:44:24+00:00,phase-1,remote-contractor,file-service,connect,tcp,deny,deny,PASS,10003,timeout
+0a0d070408d4,2026-10-11T23:44:25+00:00,phase-1,remote-contractor,postgres,read,exec,deny,deny,PASS,421,"exit 2: psql: error: connection to server at ""10.0.0.73"", port 5432 failed: FATAL:  permission denied for database ""labdb"" DETAIL:  User does not have CONNECT privilege."
+0a0d070408d4,2026-10-11T23:44:25+00:00,phase-1,remote-contractor,postgres,write,exec,deny,deny,PASS,353,"exit 2: psql: error: connection to server at ""10.0.0.73"", port 5432 failed: FATAL:  permission denied for database ""labdb"" DETAIL:  User does not have CONNECT privilege."
+0a0d070408d4,2026-10-11T23:44:35+00:00,phase-1,remote-contractor,legacy-service,connect,tcp,deny,deny,PASS,10004,timeout
+0a0d070408d4,2026-10-11T23:44:36+00:00,phase-1,remote-contractor,aws-s3-data,read,exec,deny,deny,PASS,1006,"exit 254: aws: [ERROR]: An error occurred (AccessDenied) when calling the GetObject operation: User: arn:aws:iam::<account-id>:user/remote-contractor is not authorized to perform: s3:GetObject on resource: ""arn"
+0a0d070408d4,2026-10-11T23:44:37+00:00,phase-1,remote-contractor,aws-s3-data,write,exec,deny,deny,PASS,661,"exit 254: aws: [ERROR]: An error occurred (AccessDenied) when calling the PutObject operation: User: arn:aws:iam::<account-id>:user/remote-contractor is not authorized to perform: s3:PutObject on resource: ""arn"
+0a0d070408d4,2026-10-11T23:44:47+00:00,phase-1,remote-contractor,aws-app,read,http,deny,deny,PASS,10002,connection failed: timed out
