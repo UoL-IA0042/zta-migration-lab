@@ -9,12 +9,14 @@ data only, so the analysis is reproducible from the archived repo.
 | `parse_journal.py` | `journal/*.md` | `journal.csv` + category summary; `defects.csv` (`--defects`) | RQ3, RQ4 (time allocation, time sinks); RQ1 (pitfalls, from defects) |
 | `code_metrics.sh` | phase tags | `code_metrics.csv` | RQ4, RQ5 (complexity proxy) |
 | `test-matrix/aggregate.py` | matrix results | pass/fail summary | policy correctness per phase |
+| `results_tables.py` | all of the above, perf CSVs, code metrics, git tags | `results/results-tables.md` | every Results chapter table |
 | `translation.py` | Phase 1 ruleset, both access models, matrices and results | `results/` (entitlements, changes, effective access, summary) | RQ2 (rule-to-policy translation, Phase 3) |
 
 ```bash
 ./parse_journal.py ../journal/ -o journal.csv --defects defects.csv
 ./code_metrics.sh                 # from repo root, after tagging phases
 ./translation.py                  # Phase 3; exits nonzero if a consistency check fails
+./results_tables.py               # every Results table -> results/results-tables.md
 python3 -m unittest discover -s tests
 ```
 
