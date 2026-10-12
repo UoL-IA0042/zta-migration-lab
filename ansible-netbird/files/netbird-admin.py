@@ -168,11 +168,13 @@ def ensure_network(api, net):
 def setup_keys_for_missing_peers(api, cfg, router_groups):
     # After a node reset its local identity is gone: delete the stale peer so
     # a new key is issued (cfg "reenroll", from -e netbird_reenroll=...).
+    # Peers are matched on "name", which `netbird up --hostname` sets; the
+    # API's "hostname" is the OS hostname (ip-10-100-1-x on EC2).
     for peer in api.get("/api/peers") or []:
-        if peer.get("hostname") in cfg.get("reenroll", []):
+        if peer.get("name") in cfg.get("reenroll", []):
             api.call("DELETE", f"/api/peers/{peer['id']}")
-            say("deleted peer", peer["hostname"], "(re-enroll)")
-    peers = {p.get("hostname") for p in api.get("/api/peers") or []}
+            say("deleted peer", peer["name"], "(re-enroll)")
+    peers = {p.get("name") for p in api.get("/api/peers") or []}
     os.makedirs(cfg["key_dir"], mode=0o700, exist_ok=True)
     for net in cfg["networks"]:
         host = net["peer_hostname"]

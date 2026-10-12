@@ -275,7 +275,9 @@
           Authorization: "Token {{ token_raw.content | b64decode | trim }}"
       register: peers
       vars:
-        connected: "{{ peers.json | default([]) | selectattr('connected') | map(attribute='hostname') | list }}"
+        # "name" is the peer name set by `netbird up --hostname` (the API's
+        # "hostname" is the OS hostname, ip-10-100-1-x on the edge host)
+        connected: "{{ peers.json | default([]) | selectattr('connected') | map(attribute='name') | list }}"
       until: netbird_networks | map(attribute='peer_hostname') | difference(connected) | length == 0
       retries: 24
       delay: 5
@@ -289,7 +291,7 @@
     - name: Peers (journal this)
       ansible.builtin.debug:
         msg: >-
-          {{ peers.json | map(attribute='hostname') | zip(peers.json | map(attribute='connected'),
+          {{ peers.json | map(attribute='name') | zip(peers.json | map(attribute='connected'),
              peers.json | map(attribute='ip'), peers.json | map(attribute='version')) | list }}
 
 - name: Access model
