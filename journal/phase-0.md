@@ -85,7 +85,7 @@ of establishing the supporting base infrastructure to begin phase 1.
 ## 2026-10-04 12:00-12:15 | phase-0 | ansible-observability | coding
 Add Alloy deployment to all nodes and containers for log export to Loki.
 
-## 2026-10-04 13:00-12:30 | phase-0 | ansible-observability | deployment
+## 2026-10-04 13:00-13:30 | phase-0 | ansible-observability | deployment
 Attempted to deploy observability stack to nodes. Installation of
 `node_exporter` was successful on all nodes. Installation of
 prometheus on node 1 failed.
@@ -1895,7 +1895,7 @@ role_user_arns = {
 vpn_gateway_public_ip = "<hub-eip>"
 ```
 
-## 2026-10-04 21:47:21:58 | phase-0 | terraform-aws | deployment
+## 2026-10-04 21:47-21:58 | phase-0 | terraform-aws | deployment
 Recording `terraform` and provider versions and resolved AMI ID.
 ```
 $ tf -version
