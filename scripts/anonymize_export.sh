@@ -41,7 +41,7 @@ rm -rf "$STAGE/repo/CITATION.cff" \
        "$STAGE/repo/scripts/anonymize_blocklist.txt"
 
 # --- Redact AWS account IDs in ARNs (probe output in matrix CSVs) -----
-# The committed data keeps them; only the review copy is redacted, with
+# The committed data is already redacted; this is a safety net, with
 # the journal's fixed label. perl -pi works on both macOS and Linux.
 ARN_RE='(arn:aws[a-z-]*:[a-z0-9-]*:[a-z0-9-]*:)(?!123456789012:)[0-9]{12}:'
 REDACTED=0
