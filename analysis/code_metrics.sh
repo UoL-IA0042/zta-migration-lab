@@ -24,9 +24,11 @@ for TAG in $(git tag --list 'phase-*' | sort); do
              "$SRC"/calico-policies "$SRC"/perf-battery "$SRC"/analysis; do
     [ -d "$DIR" ] || continue
     NAME="$(basename "$DIR")"
-    cloc --quiet --csv "$DIR" 2>/dev/null | tail -n +3 | \
+    # Keep only data rows (first field numeric): cloc's header and any
+    # leading blank line vary by version, so no fixed line offset.
+    cloc --quiet --csv "$DIR" 2>/dev/null | \
       awk -F, -v tag="$TAG" -v dir="$NAME" \
-        'NF>=5 && $2!="SUM" {print tag","dir","$2","$1","$3","$4","$5}' >> "$TMP_OUT"
+        '$1 ~ /^[0-9]+$/ && NF>=5 && $2!="SUM" {print tag","dir","$2","$1","$3","$4","$5}' >> "$TMP_OUT"
   done
 done
 
