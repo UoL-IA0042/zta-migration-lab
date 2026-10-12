@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """NetBird management-API bootstrap for the lab (docs/phase-2-netbird.md).
 
-Runs on the edge host against the combined server on loopback. Two
-subcommands, both convergent (create when missing, update when present,
+Runs on the edge host against the combined server on loopback. The first
+two subcommands are convergent (create when missing, update when present,
 print "created ..." / "updated ..." / "deleted ..." for each change):
 
   bootstrap     first admin + API token (POST /api/setup, once), Keycloak
@@ -15,6 +15,13 @@ print "created ..." / "updated ..." / "deleted ..." for each change):
                 network resource. Role groups appear only after a role's
                 first login, so this is re-run after logins; missing
                 groups are reported, not created.
+  account-domain       read-only check of the store (sqlite): exactly one
+  account-domain-fix   account, with the single-account domain, category
+                       "private" and primary for its domain. /api/setup
+                       creates the owner's account without these, so the
+                       first Keycloak login would otherwise get an account
+                       of its own. The fix writes the store: the server
+                       must be stopped (site.yaml does this).
 
 Input: a JSON file rendered by Ansible (no secrets). Secrets from the
 environment: NB_OWNER_PASSWORD, NB_KEYCLOAK_SECRET. The API token is kept
@@ -23,6 +30,7 @@ Standard library only.
 """
 import json
 import os
+import sqlite3
 import sys
 import urllib.error
 import urllib.request
@@ -253,9 +261,63 @@ def access_model(cfg):
     say("access model complete")
 
 
+# --- account domain -------------------------------------------------------------
+#
+# v0.80.0: Keycloak users join the owner's account only through single
+# account mode, which looks up the account by domain (domain = the
+# single-account domain, domain_category = private, is_domain_primary_account).
+# /api/setup with create_pat provisions the owner's account from claims
+# without a domain, and only an interactive owner login would set them, so
+# the first Keycloak user would get a new account. Columns as in the
+# server's own schema (management/server/testdata/store.sql).
+
+def read_accounts(db):
+    return db.execute("SELECT id, domain, domain_category, is_domain_primary_account FROM accounts").fetchall()
+
+
+def account_state(cfg, rows):
+    want = cfg["single_account_domain"]
+    state = {"accounts": len(rows), "ok": False}
+    if len(rows) == 1:
+        _, domain, category, primary = rows[0]
+        state.update(domain=domain, domain_category=category, primary=bool(primary),
+                     ok=(domain == want and category == "private" and bool(primary)))
+    return state
+
+
+def account_domain(cfg):
+    db = sqlite3.connect(f"file:{cfg['store_file']}?mode=ro", uri=True)
+    try:
+        print(json.dumps(account_state(cfg, read_accounts(db))))
+    finally:
+        db.close()
+
+
+def account_domain_fix(cfg):
+    db = sqlite3.connect(cfg["store_file"])
+    try:
+        rows = read_accounts(db)
+        state = account_state(cfg, rows)
+        if state["accounts"] != 1:
+            sys.exit(f"{state['accounts']} accounts in the store, expected 1: see the README (second account)")
+        if state["ok"]:
+            say("account domain ok")
+            return
+        with db:
+            db.execute("UPDATE accounts SET domain = ?, domain_category = 'private', "
+                       "is_domain_primary_account = 1 WHERE id = ?",
+                       (cfg["single_account_domain"], rows[0][0]))
+        say("updated account domain", cfg["single_account_domain"], "(private, primary)")
+    finally:
+        db.close()
+
+
+COMMANDS = {"bootstrap": bootstrap, "access-model": access_model,
+            "account-domain": account_domain, "account-domain-fix": account_domain_fix}
+
 if __name__ == "__main__":
-    if len(sys.argv) != 3 or sys.argv[1] not in ("bootstrap", "access-model"):
-        sys.exit("usage: netbird-admin.py bootstrap|access-model <config.json>")
+    if len(sys.argv) != 3 or sys.argv[1] not in COMMANDS:
+        sys.exit(f"usage: netbird-admin.py {'|'.join(COMMANDS)} <config.json>")
     with open(sys.argv[2]) as fh:
         config = json.load(fh)
-    (bootstrap if sys.argv[1] == "bootstrap" else access_model)(config)
+    COMMANDS[sys.argv[1]](config)

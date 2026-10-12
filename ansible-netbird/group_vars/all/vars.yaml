@@ -35,6 +35,10 @@ netbird_api: "http://127.0.0.1:{{ netbird_server_port }}"   # admin script, on t
 
 # Bootstrap admin: a local user of the embedded IdP, used for the API token
 # and the dashboard. Remote workers log in through Keycloak instead.
+# v0.80.0 default for a self-hosted install (DefaultSelfHostedDomain); the
+# server reuses the owner's account domain once it is set, and Keycloak
+# users join the account through it (site.yaml, account domain).
+netbird_single_account_domain: netbird.selfhosted
 netbird_owner_email: nb-admin@lab.example.com
 netbird_owner_name: NetBird admin
 netbird_owner_password: "{{ vault_netbird_owner_password }}"

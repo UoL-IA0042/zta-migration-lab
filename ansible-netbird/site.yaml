@@ -126,6 +126,8 @@
           settings_extra: "{{ netbird_settings_extra }}"
           networks: "{{ netbird_networks }}"
           key_dir: "{{ netbird_install_dir }}/enroll"
+          store_file: "{{ netbird_install_dir }}/data/store.db"
+          single_account_domain: "{{ netbird_single_account_domain }}"
           reenroll: "{{ netbird_reenroll_hosts.split(',') | map('trim') | select | list }}"
 
     - name: Bootstrap (owner, IdP connector, settings, networks, setup keys)
@@ -141,6 +143,68 @@
     - name: Show bootstrap changes (journal these)
       ansible.builtin.debug:
         var: bootstrap.stdout_lines
+
+    # The owner's account must carry the single-account domain before the
+    # first Keycloak login, or that user gets an account of its own
+    # (netbird-admin.py, "account domain"). Fixed once, with the server stopped.
+    - name: Check the owner's account domain
+      ansible.builtin.command:
+        cmd: python3 netbird-admin.py account-domain bootstrap.json
+        chdir: "{{ netbird_install_dir }}"
+      register: account_check
+      changed_when: false
+
+    - name: Exactly one account
+      ansible.builtin.assert:
+        that: (account_check.stdout | from_json).accounts == 1
+        fail_msg: >-
+          {{ (account_check.stdout | from_json).accounts }} accounts: a login
+          got an account of its own. Wipe the server state and redeploy
+          (README, "Second account").
+        quiet: true
+
+    - name: Set the account domain
+      when: not (account_check.stdout | from_json).ok
+      block:
+        - name: Stop the server
+          ansible.builtin.command:
+            cmd: docker compose stop netbird-server
+            chdir: "{{ netbird_install_dir }}"
+          changed_when: true
+
+        - name: Write the domain into the store
+          ansible.builtin.command:
+            cmd: python3 netbird-admin.py account-domain-fix bootstrap.json
+            chdir: "{{ netbird_install_dir }}"
+          register: account_fix
+          changed_when: account_fix.stdout is search('^updated ', multiline=True)
+
+      always:
+        - name: Start the server
+          ansible.builtin.command:
+            cmd: docker compose start netbird-server
+            chdir: "{{ netbird_install_dir }}"
+          changed_when: true
+
+        - name: Wait for the management API
+          ansible.builtin.uri:
+            url: "{{ netbird_api }}/api/instance"
+          register: instance
+          until: instance.status == 200
+          retries: 30
+          delay: 5
+
+    - name: Re-check the account domain
+      ansible.builtin.command:
+        cmd: python3 netbird-admin.py account-domain bootstrap.json
+        chdir: "{{ netbird_install_dir }}"
+      register: account_recheck
+      changed_when: false
+      failed_when: not (account_recheck.stdout | from_json).ok
+
+    - name: Account domain (journal this)
+      ansible.builtin.debug:
+        msg: "{{ account_recheck.stdout | from_json }}"
 
     - name: Look for setup keys of routing peers not yet enrolled
       ansible.builtin.stat:
@@ -223,6 +287,13 @@
             dest: /root/netbird-setup.key
             mode: "0600"
           no_log: true
+
+        # A peer whose identity the server no longer has (state wiped) is
+        # still "up" locally; take it down so up logs in with the key.
+        - name: netbird down
+          ansible.builtin.command: netbird down
+          changed_when: true
+          failed_when: false
 
         - name: netbird up
           ansible.builtin.command: >-

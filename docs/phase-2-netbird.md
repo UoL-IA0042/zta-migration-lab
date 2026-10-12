@@ -104,6 +104,12 @@ rule-to-policy artifact (RQ2).
    resources, routing peers (setup keys), policies; export the policy
    set; enroll tpi2-4 and the edge host as routing peers; check both
    online and the routes present.
+   Deviation found in implementation: Keycloak users join the owner's
+   account only through single account mode, which finds the account by
+   its domain; `POST /api/setup` (headless owner) creates the account
+   without one, so the first Keycloak login got a second, empty account.
+   `site.yaml` writes the single-account domain into the owner's account
+   (store, server stopped) before any login.
 5. Decommission remote-access OpenVPN
    (`ansible-openvpn/decommission-remote-access.yaml`, unchanged) and the
    ISP 1194/udp forward.

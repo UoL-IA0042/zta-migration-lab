@@ -80,6 +80,13 @@ ansible-playbook -i inventory.yaml --vault-password-file ../.vault-pass site.yam
    - networks `lab` (resource 10.0.0.73/32, routing peer group
      `routers-lab`) and `aws` (10.100.10.10/32, `routers-aws`), masquerade
    - one-off setup keys (1 hour) for routing peers not yet enrolled
+   - the owner's account gets the single-account domain
+     (`netbird.selfhosted`, category private, primary). `POST /api/setup`
+     leaves it without one, and NetBird then gives the first Keycloak user
+     an account of its own instead of joining the owner's. The playbook
+     checks the store, and on a fresh install stops the server, writes the
+     three fields (`netbird-admin.py account-domain-fix`) and starts it
+     again
 3. Routing peers (tpi2-4, edge host): NetBird client from
    pkgs.netbird.io pinned to the server version, enrolled with its setup
    key, `--disable-dns --disable-client-routes` so the gateways keep their
@@ -94,6 +101,27 @@ The playbook prints the bootstrap changes, image digests and client
 version; journal them. Re-runs converge. After a routing peer's node was
 reset its identity is gone: `-e netbird_reenroll=tpi2-4` (comma-separated,
 no spaces) deletes the stale peer and enrolls it again.
+
+### Second account
+
+If a Keycloak login came before the account-domain fix, that user and the
+Mac's peer are in a second account, invisible to the admin token (the
+server log shows a second `accountID`), and the playbook stops at
+"Exactly one account". Accounts cannot be merged; wipe the server state
+and redeploy (the secrets and Keycloak are kept):
+
+```bash
+# edge host
+cd /opt/netbird && sudo docker compose down
+sudo rm -rf data/* admin.token enroll/*
+# Mac, from ansible-netbird/
+netbird down
+ansible-playbook -i inventory.yaml --vault-password-file ../.vault-pass site.yaml
+```
+
+The routing peers are enrolled again (the server no longer knows them, so
+the bootstrap issues new setup keys). On the Mac, log in again per role
+(step 6); the profile is reused.
 
 ## Access model (`access-model.yaml`)
 
