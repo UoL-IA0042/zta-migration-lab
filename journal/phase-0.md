@@ -1895,7 +1895,7 @@ role_user_arns = {
 vpn_gateway_public_ip = "<hub-eip>"
 ```
 
-## 2026-10-04 21:47 | phase-0 | terraform-aws | deployment
+## 2026-10-04 21:47:21:58 | phase-0 | terraform-aws | deployment
 Recording `terraform` and provider versions and resolved AMI ID.
 ```
 $ tf -version
