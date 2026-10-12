@@ -1,6 +1,7 @@
 # Work Journal
 
-Primary data for the time-allocation and defect analyses. One file per
+Primary data for the time-allocation and defect analyses; there is no
+separate issue tracker. One file per
 phase (`phase-0.md`, `phase-1.md`, ...). Entries are contemporaneous and
 committed with the work they describe; commit timestamps cross-validate
 entry timestamps.
@@ -9,8 +10,8 @@ entry timestamps.
 
 ```markdown
 ## 2026-09-12 09:40–11:05 | phase-2 | openziti | debugging
-Controller failed to start after re-flash; cgroup v2 flag missing from
-vendor kernel. Logged as issue #23.
+Controller failed to start after re-flash.
+Defect: controller container exits at start after re-flash. Cause: cgroup v2 flag missing from the vendor kernel. Fix: kernel parameter added to the node image (a1b2c3d).
 ```
 
 Header fields: `date start–end | phase | component | category`.
@@ -24,7 +25,13 @@ Categories (fixed taxonomy — do not invent new ones mid-study):
 - Write the entry when the work happens, not at day's end.
 - One entry per contiguous work session per category; switch categories,
   start a new entry.
-- Reference issue numbers for any defect or unplanned work.
+- Record every defect, failure and item of unplanned work as one line
+  starting `Defect:` (a list item `- Defect:` also counts), in the entry
+  where it was found: what failed, its cause, and the fix or workaround
+  with the commit when there is one —
+  `Defect: <what failed>. Cause: <cause>. Fix: <fix or workaround>.`
+  Lines inside fenced code blocks are not counted, so pasted output
+  cannot add defects by accident.
 - No secrets, no real credentials, no non-lab IPs: this ships with the
   public archive.
 - Pasted output is redacted with fixed labels: `<account-id>`,
