@@ -1,5 +1,9 @@
 # Calico East-West Policies (Phase 2: workload-to-workload zero trust)
 
+> **Status: not deployed.** The east-west (Calico) experiment was dropped
+> from the study for time (`docs/phase-3-translation.md`, scope change).
+> This directory is kept as written and was never run against the lab.
+
 Exercises the east-west dimension: a three-tier app (frontend -> api ->
 db) under default-deny with explicit allows mirroring the legitimate
 call graph.

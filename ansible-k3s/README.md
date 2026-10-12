@@ -1,5 +1,9 @@
 # Bare-Metal K3s Cluster: Turing Pi 2 (4x RK1, Ubuntu ARM64)
 
+> **Status: not deployed.** The east-west (Calico) experiment was dropped
+> from the study for time (`docs/phase-3-translation.md`, scope change).
+> This directory is kept as written and was never run against the lab.
+
 K3s cluster with cloud-analogous services:
 
 | Cloud capability | Bare-metal analogue here |

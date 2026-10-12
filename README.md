@@ -27,24 +27,30 @@ documented in `docs/addressing.md`.
 | `ansible-openvpn/` | Perimeter VPN baseline (kyl191.openvpn, pinned) | 1 |
 | `ansible-openziti/` | App-embedded ZTNA: controller, router, access model | 2 |
 | `ansible-netbird/` | WireGuard-mesh ZTNA: management stack + policies | 2 |
-| `ansible-k3s/` | K3s + MetalLB + Longhorn substrate | 2 |
-| `calico-policies/` | East-west zero trust: install + NetworkPolicies | 2 |
+| `ansible-k3s/` | K3s + MetalLB + Longhorn substrate | 2 (not run) |
+| `calico-policies/` | East-west zero trust: install + NetworkPolicies | 2 (not run) |
 | `test-matrix/` | Access-control test harness + per-phase matrices | all |
 | `perf-battery/` | Throughput/latency measurements per access path | all |
-| `analysis/` | Journal parser, code metrics, results pipeline | all |
+| `analysis/` | Journal parser, code metrics, Phase 3 translation analysis | all, 3 |
 | `journal/` | Structured work journal (primary time/defect data) | all |
-| `docs/` | Cross-component conventions and addressing plan | — |
+| `docs/` | Conventions, addressing plan, phase designs, anonymization | — |
 
 Deployment order: observability -> keycloak -> workloads -> terraform-aws
--> openvpn (phase 1) -> ZTNA components per phase 2 experiment.
+-> openvpn (phase 1) -> ZTNA components per phase 2 experiment
+(`ansible-openziti`, then `ansible-netbird`, each from the Phase 1
+baseline). Phase 3 is an analysis of committed data only
+(`docs/phase-3-translation.md`, `analysis/translation.py`); there is no
+Phase 4. The K3s/Calico east-west experiment was dropped for time and
+its directories were never deployed.
 Components marked VERIFY in their READMEs pin fast-moving upstream
 details that must be confirmed against current releases at deploy time
 and recorded in the journal.
 
 ## Conventions
 
-- **Phase tags.** Each experimental phase is a tagged release
-  (`phase-1-baseline`, `phase-2-openziti`, ...). Every result in the
+- **Phase tags.** Each experimental phase is a signed tag
+  (`phase-0-infrastructure`, `phase-1-baseline`, `phase-2-openziti`,
+  `phase-2-netbird`). Every result in the
   dissertation traces to the tag that produced it. Tags are deposited to
   Zenodo via the GitHub integration; cite the version DOI.
 - **Reproducibility.** Every experiment starts from a clean state: nodes
