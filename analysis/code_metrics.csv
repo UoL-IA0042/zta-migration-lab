@@ -1,0 +1,105 @@
+tag,component,language,files,blank,comment,code
+phase-0-infrastructure,ansible-k3s,Markdown,1,17,0,54
+phase-0-infrastructure,ansible-k3s,Jinja Template,1,0,0,17
+phase-0-infrastructure,ansible-keycloak,Jinja Template,2,1,0,103
+phase-0-infrastructure,ansible-keycloak,Markdown,1,10,0,40
+phase-0-infrastructure,ansible-netbird,Markdown,2,12,0,57
+phase-0-infrastructure,ansible-observability,Jinja Template,3,16,0,105
+phase-0-infrastructure,ansible-observability,Markdown,1,10,0,38
+phase-0-infrastructure,ansible-openvpn,Markdown,1,10,0,33
+phase-0-infrastructure,ansible-openziti,Jinja Template,1,7,0,59
+phase-0-infrastructure,ansible-openziti,Markdown,1,12,0,47
+phase-0-infrastructure,ansible-workloads,Jinja Template,2,6,0,61
+phase-0-infrastructure,ansible-workloads,Markdown,1,5,0,26
+phase-0-infrastructure,terraform-aws,Text,2,162,0,588
+phase-0-infrastructure,terraform-aws,HCL,5,48,23,303
+phase-0-infrastructure,terraform-aws,Markdown,1,8,0,38
+phase-0-infrastructure,test-matrix,YAML,1,10,14,77
+phase-0-infrastructure,test-matrix,Markdown,1,18,0,51
+phase-0-infrastructure,calico-policies,Markdown,1,6,0,30
+phase-0-infrastructure,calico-policies,Bourne Shell,1,4,3,18
+phase-0-infrastructure,perf-battery,Markdown,1,4,0,17
+phase-0-infrastructure,analysis,CSV,1,0,0,21
+phase-0-infrastructure,analysis,Markdown,1,5,0,18
+phase-0-infrastructure,analysis,Bourne Shell,1,3,4,17
+phase-1-baseline,ansible-k3s,Markdown,1,17,0,54
+phase-1-baseline,ansible-k3s,Jinja Template,1,0,0,17
+phase-1-baseline,ansible-keycloak,Jinja Template,2,1,0,103
+phase-1-baseline,ansible-keycloak,Markdown,1,10,0,40
+phase-1-baseline,ansible-netbird,Markdown,2,12,0,57
+phase-1-baseline,ansible-observability,Jinja Template,3,16,0,105
+phase-1-baseline,ansible-observability,Markdown,1,10,0,38
+phase-1-baseline,ansible-openvpn,Markdown,1,20,0,80
+phase-1-baseline,ansible-openziti,Jinja Template,1,7,0,59
+phase-1-baseline,ansible-openziti,Markdown,1,12,0,47
+phase-1-baseline,ansible-workloads,Jinja Template,2,6,0,67
+phase-1-baseline,ansible-workloads,Markdown,1,5,0,29
+phase-1-baseline,terraform-aws,Text,2,162,0,588
+phase-1-baseline,terraform-aws,HCL,5,51,27,338
+phase-1-baseline,terraform-aws,Markdown,1,8,0,46
+phase-1-baseline,test-matrix,YAML,1,10,23,83
+phase-1-baseline,test-matrix,Markdown,1,23,0,76
+phase-1-baseline,test-matrix,CSV,8,0,0,72
+phase-1-baseline,test-matrix,Text,1,0,0,2
+phase-1-baseline,calico-policies,Markdown,1,6,0,30
+phase-1-baseline,calico-policies,Bourne Shell,1,4,3,18
+phase-1-baseline,perf-battery,CSV,3,0,0,68
+phase-1-baseline,perf-battery,Markdown,1,4,0,18
+phase-1-baseline,analysis,CSV,1,0,0,47
+phase-1-baseline,analysis,Markdown,1,5,0,18
+phase-1-baseline,analysis,Bourne Shell,1,3,4,17
+phase-2-netbird,ansible-k3s,Markdown,1,17,0,54
+phase-2-netbird,ansible-k3s,Jinja Template,1,0,0,17
+phase-2-netbird,ansible-keycloak,Jinja Template,2,1,2,137
+phase-2-netbird,ansible-keycloak,Markdown,1,15,0,66
+phase-2-netbird,ansible-netbird,JSON,1,0,0,260
+phase-2-netbird,ansible-netbird,Python,1,43,42,238
+phase-2-netbird,ansible-netbird,Markdown,1,35,0,180
+phase-2-netbird,ansible-netbird,Jinja Template,4,9,0,82
+phase-2-netbird,ansible-observability,Jinja Template,3,16,0,105
+phase-2-netbird,ansible-observability,Markdown,1,10,0,38
+phase-2-netbird,ansible-openvpn,Markdown,1,26,0,110
+phase-2-netbird,ansible-openziti,Jinja Template,4,13,0,228
+phase-2-netbird,ansible-openziti,Markdown,1,34,0,148
+phase-2-netbird,ansible-workloads,Jinja Template,2,6,0,67
+phase-2-netbird,ansible-workloads,Markdown,1,5,0,29
+phase-2-netbird,terraform-aws,Text,2,162,0,588
+phase-2-netbird,terraform-aws,HCL,7,71,56,541
+phase-2-netbird,terraform-aws,Markdown,1,12,0,63
+phase-2-netbird,test-matrix,YAML,3,30,85,249
+phase-2-netbird,test-matrix,CSV,23,0,0,207
+phase-2-netbird,test-matrix,Markdown,1,26,0,89
+phase-2-netbird,test-matrix,Text,1,0,0,2
+phase-2-netbird,calico-policies,Markdown,1,6,0,30
+phase-2-netbird,calico-policies,Bourne Shell,1,4,3,18
+phase-2-netbird,perf-battery,Python,1,21,12,94
+phase-2-netbird,perf-battery,Markdown,1,9,0,42
+phase-2-netbird,analysis,CSV,1,0,0,76
+phase-2-netbird,analysis,Markdown,1,5,0,18
+phase-2-netbird,analysis,Bourne Shell,1,3,4,17
+phase-2-openziti,ansible-k3s,Markdown,1,17,0,54
+phase-2-openziti,ansible-k3s,Jinja Template,1,0,0,17
+phase-2-openziti,ansible-keycloak,Jinja Template,2,1,0,122
+phase-2-openziti,ansible-keycloak,Markdown,1,14,0,57
+phase-2-openziti,ansible-netbird,Markdown,2,12,0,57
+phase-2-openziti,ansible-observability,Jinja Template,3,16,0,105
+phase-2-openziti,ansible-observability,Markdown,1,10,0,38
+phase-2-openziti,ansible-openvpn,Markdown,1,26,0,110
+phase-2-openziti,ansible-openziti,Jinja Template,4,13,0,228
+phase-2-openziti,ansible-openziti,Markdown,1,34,0,148
+phase-2-openziti,ansible-workloads,Jinja Template,2,6,0,67
+phase-2-openziti,ansible-workloads,Markdown,1,5,0,29
+phase-2-openziti,terraform-aws,Text,2,162,0,588
+phase-2-openziti,terraform-aws,HCL,6,64,54,445
+phase-2-openziti,terraform-aws,Markdown,1,11,0,57
+phase-2-openziti,test-matrix,YAML,2,20,55,166
+phase-2-openziti,test-matrix,CSV,12,0,0,108
+phase-2-openziti,test-matrix,Markdown,1,26,0,87
+phase-2-openziti,test-matrix,Text,1,0,0,2
+phase-2-openziti,calico-policies,Markdown,1,6,0,30
+phase-2-openziti,calico-policies,Bourne Shell,1,4,3,18
+phase-2-openziti,perf-battery,Python,1,21,12,94
+phase-2-openziti,perf-battery,Markdown,1,7,0,33
+phase-2-openziti,analysis,Python,1,19,8,87
+phase-2-openziti,analysis,Markdown,1,5,0,18
+phase-2-openziti,analysis,Bourne Shell,1,3,4,17
