@@ -11,6 +11,8 @@ least privilege — every role must carry both `allow` and `deny` rows.
 - `matrix.yaml` — Phase 1 (perimeter baseline) access model
 - `matrix-phase2-openziti.yaml` — Phase 2, OpenZiti: same resources,
   least-privilege expectations (phase label `phase-2-openziti`)
+- `matrix-phase2-netbird.yaml` — Phase 2, NetBird: same resources and
+  expectations as the OpenZiti matrix (phase label `phase-2-netbird`)
 - `aggregate.py` — merges result CSVs, per-phase/role summary, nonzero
   exit on any FAIL/ERROR (usable as a migration-wave gate)
 - `results/` — CSV output, one file per run (commit these; they are data)

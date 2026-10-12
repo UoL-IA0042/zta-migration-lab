@@ -117,6 +117,53 @@ migration finding.
 Dashboard: `https://netbird.<edge-ip-dashed>.sslip.io`, admin login
 `nb-admin@lab.example.com` with the vaulted password.
 
+## Step 6: client (NetBird for macOS)
+
+| Term | Meaning here |
+|---|---|
+| profile | a client-side identity: its own WireGuard key and NetBird peer. One profile per role, so switching roles is selecting a profile |
+| SSO login | `netbird up` opens the browser at NetBird's embedded IdP, which offers Keycloak; the Keycloak user decides the role (JWT group) |
+| connection type | P2P (direct WireGuard after NAT traversal) or relayed (through the relay on the edge host); `netbird status -d` per peer |
+
+Install (once): the NetBird client for macOS (`brew install
+netbirdio/tap/netbird`, or the installer from pkgs.netbird.io), then
+`sudo netbird service install && sudo netbird service start`. Journal the
+version (`netbird version`). Ziti Desktop Edge and every OpenVPN client
+must be off: all three capture 10.0.0.73.
+
+First login per role (home Wi-Fi), then the access model:
+
+1. Sign out of Keycloak in the default browser, so the login does not
+   reuse the previous role:
+   `https://idp.<edge-ip-dashed>.sslip.io/realms/lab/protocol/openid-connect/logout`
+2. Create and select the role's profile, and log in:
+   ```bash
+   netbird down
+   netbird profile add remote-admin        # once per role
+   netbird profile select remote-admin
+   netbird up --management-url https://netbird.<edge-ip-dashed>.sslip.io --hostname mac-remote-admin
+   ```
+   In the browser choose Keycloak and log in as the role.
+3. `netbird down` (on home Wi-Fi the client's routes would capture
+   10.0.0.73 and break Ansible against tpi2-3), then from `ansible-netbird/`:
+   ```bash
+   ansible-playbook -i inventory.yaml access-model.yaml
+   ```
+   The role is no longer listed as missing, and its policies are created
+   or updated. Commit `policies-export.json` with the journal.
+
+Per role, for matrix runs (hotspot):
+
+```bash
+netbird profile select remote-admin && netbird up      # later logins reuse the profile
+netbird status -d | grep -iE 'connection type|relay|tpi2-4|nb-edge'
+route -n get 10.0.0.73 | grep interface                # the NetBird interface (utun)
+curl -s -o /dev/null -w '%{http_code}\n' http://10.0.0.73:8080/   # 200
+```
+
+Journal per run: role, client version, connection type to tpi2-4 and
+nb-edge (P2P or relayed). Then `netbird down` before switching profiles.
+
 ## VERIFY at deployment time (journal these)
 
 - Image digests and the client package version (`netbird=0.80.0` must

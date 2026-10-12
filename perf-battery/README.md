@@ -33,6 +33,17 @@ the substrate is unchanged.
     --http-url http://10.100.10.10:8080/
 ```
 
+Phase 2, NetBird (profile `remote-admin`, same protocol). Record the
+connection type to tpi2-4 and nb-edge before each path (`netbird status
+-d`): P2P and relayed runs are different paths and are reported apart.
+
+```bash
+./run_perf.py --phase phase-2-netbird --path netbird \
+    --iperf-server 10.0.0.73 --http-url http://10.0.0.73:8080/
+./run_perf.py --phase phase-2-netbird --path netbird-aws \
+    --http-url http://10.100.10.10:8080/
+```
+
 Path note for the analysis: `vpn` carried client traffic Mac -> tpi2-4
 (home, over the ISP gateway); `openziti` carries it Mac -> public router
 (AWS) -> link -> tpi2-4, and `openziti-aws` Mac -> public router ->
