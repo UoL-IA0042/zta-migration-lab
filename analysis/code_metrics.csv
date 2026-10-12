@@ -1,120 +1,180 @@
 tag,component,language,files,blank,comment,code
+phase-0-infrastructure,ansible-k3s,YAML,4,21,43,173
 phase-0-infrastructure,ansible-k3s,Markdown,1,17,0,54
 phase-0-infrastructure,ansible-k3s,Jinja Template,1,0,0,17
+phase-0-infrastructure,ansible-keycloak,YAML,4,15,19,140
 phase-0-infrastructure,ansible-keycloak,Jinja Template,2,1,0,103
 phase-0-infrastructure,ansible-keycloak,Markdown,1,10,0,40
+phase-0-infrastructure,ansible-netbird,YAML,3,9,11,80
 phase-0-infrastructure,ansible-netbird,Markdown,2,12,0,57
+phase-0-infrastructure,ansible-observability,YAML,4,28,14,216
 phase-0-infrastructure,ansible-observability,Jinja Template,3,16,0,105
 phase-0-infrastructure,ansible-observability,Markdown,1,10,0,38
+phase-0-infrastructure,ansible-openvpn,YAML,3,11,30,83
 phase-0-infrastructure,ansible-openvpn,Markdown,1,10,0,33
+phase-0-infrastructure,ansible-openziti,YAML,3,15,27,155
 phase-0-infrastructure,ansible-openziti,Jinja Template,1,7,0,59
 phase-0-infrastructure,ansible-openziti,Markdown,1,12,0,47
+phase-0-infrastructure,ansible-workloads,YAML,4,12,9,119
 phase-0-infrastructure,ansible-workloads,Jinja Template,2,6,0,61
 phase-0-infrastructure,ansible-workloads,Markdown,1,5,0,26
+phase-0-infrastructure,terraform-aws,HCL,5,48,23,303
 phase-0-infrastructure,terraform-aws,Markdown,1,8,0,38
+phase-0-infrastructure,test-matrix,Python,2,49,36,202
 phase-0-infrastructure,test-matrix,YAML,1,10,14,77
 phase-0-infrastructure,test-matrix,Markdown,1,18,0,51
+phase-0-infrastructure,calico-policies,YAML,2,0,11,177
 phase-0-infrastructure,calico-policies,Markdown,1,6,0,30
 phase-0-infrastructure,calico-policies,Bourne Shell,1,4,3,18
+phase-0-infrastructure,perf-battery,Python,1,21,12,94
 phase-0-infrastructure,perf-battery,Markdown,1,4,0,17
+phase-0-infrastructure,analysis,Python,1,19,8,87
 phase-0-infrastructure,analysis,Markdown,1,5,0,18
 phase-0-infrastructure,analysis,Bourne Shell,1,3,4,17
+phase-1-baseline,ansible-k3s,YAML,4,21,43,173
 phase-1-baseline,ansible-k3s,Markdown,1,17,0,54
 phase-1-baseline,ansible-k3s,Jinja Template,1,0,0,17
+phase-1-baseline,ansible-keycloak,YAML,4,15,19,140
 phase-1-baseline,ansible-keycloak,Jinja Template,2,1,0,103
 phase-1-baseline,ansible-keycloak,Markdown,1,10,0,40
+phase-1-baseline,ansible-netbird,YAML,3,9,11,80
 phase-1-baseline,ansible-netbird,Markdown,2,12,0,57
+phase-1-baseline,ansible-observability,YAML,4,28,14,216
 phase-1-baseline,ansible-observability,Jinja Template,3,16,0,105
 phase-1-baseline,ansible-observability,Markdown,1,10,0,38
+phase-1-baseline,ansible-openvpn,YAML,3,40,79,248
 phase-1-baseline,ansible-openvpn,Markdown,1,20,0,80
+phase-1-baseline,ansible-openziti,YAML,3,15,27,155
 phase-1-baseline,ansible-openziti,Jinja Template,1,7,0,59
 phase-1-baseline,ansible-openziti,Markdown,1,12,0,47
+phase-1-baseline,ansible-workloads,YAML,4,22,22,173
 phase-1-baseline,ansible-workloads,Jinja Template,2,6,0,67
 phase-1-baseline,ansible-workloads,Markdown,1,5,0,29
+phase-1-baseline,terraform-aws,HCL,5,51,27,338
 phase-1-baseline,terraform-aws,Markdown,1,8,0,46
+phase-1-baseline,test-matrix,Python,3,66,66,250
 phase-1-baseline,test-matrix,YAML,1,10,23,83
 phase-1-baseline,test-matrix,Markdown,1,23,0,76
 phase-1-baseline,test-matrix,CSV,8,0,0,72
 phase-1-baseline,test-matrix,Text,1,0,0,2
+phase-1-baseline,calico-policies,YAML,2,0,11,177
 phase-1-baseline,calico-policies,Markdown,1,6,0,30
 phase-1-baseline,calico-policies,Bourne Shell,1,4,3,18
+phase-1-baseline,perf-battery,Python,1,21,12,94
 phase-1-baseline,perf-battery,CSV,3,0,0,68
 phase-1-baseline,perf-battery,Markdown,1,4,0,18
+phase-1-baseline,analysis,Python,1,19,8,87
 phase-1-baseline,analysis,Markdown,1,5,0,18
 phase-1-baseline,analysis,Bourne Shell,1,3,4,17
+phase-2-netbird,ansible-k3s,YAML,4,21,43,173
 phase-2-netbird,ansible-k3s,Markdown,1,17,0,54
 phase-2-netbird,ansible-k3s,Jinja Template,1,0,0,17
+phase-2-netbird,ansible-keycloak,YAML,4,19,35,166
 phase-2-netbird,ansible-keycloak,Jinja Template,2,1,2,137
 phase-2-netbird,ansible-keycloak,Markdown,1,15,0,66
+phase-2-netbird,ansible-netbird,YAML,6,77,79,584
 phase-2-netbird,ansible-netbird,JSON,1,0,0,260
 phase-2-netbird,ansible-netbird,Python,1,43,42,238
 phase-2-netbird,ansible-netbird,Markdown,1,35,0,180
 phase-2-netbird,ansible-netbird,Jinja Template,4,9,0,82
+phase-2-netbird,ansible-observability,YAML,4,28,14,216
 phase-2-netbird,ansible-observability,Jinja Template,3,16,0,105
 phase-2-netbird,ansible-observability,Markdown,1,10,0,38
+phase-2-netbird,ansible-openvpn,YAML,4,59,102,388
 phase-2-netbird,ansible-openvpn,Markdown,1,26,0,110
+phase-2-netbird,ansible-openziti,YAML,5,66,60,489
 phase-2-netbird,ansible-openziti,Jinja Template,4,13,0,228
 phase-2-netbird,ansible-openziti,Markdown,1,34,0,148
+phase-2-netbird,ansible-workloads,YAML,4,22,22,173
 phase-2-netbird,ansible-workloads,Jinja Template,2,6,0,67
 phase-2-netbird,ansible-workloads,Markdown,1,5,0,29
+phase-2-netbird,terraform-aws,HCL,7,71,56,541
 phase-2-netbird,terraform-aws,Markdown,1,12,0,63
+phase-2-netbird,test-matrix,Python,3,66,66,250
 phase-2-netbird,test-matrix,YAML,3,30,85,249
 phase-2-netbird,test-matrix,CSV,23,0,0,207
 phase-2-netbird,test-matrix,Markdown,1,26,0,89
 phase-2-netbird,test-matrix,Text,1,0,0,2
+phase-2-netbird,calico-policies,YAML,2,0,11,177
 phase-2-netbird,calico-policies,Markdown,1,6,0,30
 phase-2-netbird,calico-policies,Bourne Shell,1,4,3,18
+phase-2-netbird,perf-battery,CSV,8,0,0,168
 phase-2-netbird,perf-battery,Python,1,21,12,94
 phase-2-netbird,perf-battery,Markdown,1,9,0,42
+phase-2-netbird,analysis,Python,1,19,8,87
 phase-2-netbird,analysis,Markdown,1,5,0,18
 phase-2-netbird,analysis,Bourne Shell,1,3,4,17
+phase-2-openziti,ansible-k3s,YAML,4,21,43,173
 phase-2-openziti,ansible-k3s,Markdown,1,17,0,54
 phase-2-openziti,ansible-k3s,Jinja Template,1,0,0,17
+phase-2-openziti,ansible-keycloak,YAML,4,19,30,167
 phase-2-openziti,ansible-keycloak,Jinja Template,2,1,0,122
 phase-2-openziti,ansible-keycloak,Markdown,1,14,0,57
+phase-2-openziti,ansible-netbird,YAML,3,9,11,80
 phase-2-openziti,ansible-netbird,Markdown,2,12,0,57
+phase-2-openziti,ansible-observability,YAML,4,28,14,216
 phase-2-openziti,ansible-observability,Jinja Template,3,16,0,105
 phase-2-openziti,ansible-observability,Markdown,1,10,0,38
+phase-2-openziti,ansible-openvpn,YAML,4,59,102,388
 phase-2-openziti,ansible-openvpn,Markdown,1,26,0,110
+phase-2-openziti,ansible-openziti,YAML,5,66,60,489
 phase-2-openziti,ansible-openziti,Jinja Template,4,13,0,228
 phase-2-openziti,ansible-openziti,Markdown,1,34,0,148
+phase-2-openziti,ansible-workloads,YAML,4,22,22,173
 phase-2-openziti,ansible-workloads,Jinja Template,2,6,0,67
 phase-2-openziti,ansible-workloads,Markdown,1,5,0,29
+phase-2-openziti,terraform-aws,HCL,6,64,54,445
 phase-2-openziti,terraform-aws,Markdown,1,11,0,57
+phase-2-openziti,test-matrix,Python,3,66,66,250
 phase-2-openziti,test-matrix,YAML,2,20,55,166
 phase-2-openziti,test-matrix,CSV,12,0,0,108
 phase-2-openziti,test-matrix,Markdown,1,26,0,87
 phase-2-openziti,test-matrix,Text,1,0,0,2
+phase-2-openziti,calico-policies,YAML,2,0,11,177
 phase-2-openziti,calico-policies,Markdown,1,6,0,30
 phase-2-openziti,calico-policies,Bourne Shell,1,4,3,18
+phase-2-openziti,perf-battery,CSV,5,0,0,110
 phase-2-openziti,perf-battery,Python,1,21,12,94
 phase-2-openziti,perf-battery,Markdown,1,7,0,33
+phase-2-openziti,analysis,Python,1,19,8,87
 phase-2-openziti,analysis,Markdown,1,5,0,18
 phase-2-openziti,analysis,Bourne Shell,1,3,4,17
+phase-3-translation,ansible-k3s,YAML,4,21,43,173
 phase-3-translation,ansible-k3s,Markdown,1,18,0,57
 phase-3-translation,ansible-k3s,Jinja Template,1,0,0,17
+phase-3-translation,ansible-keycloak,YAML,4,19,35,166
 phase-3-translation,ansible-keycloak,Jinja Template,2,1,2,137
 phase-3-translation,ansible-keycloak,Markdown,1,15,0,66
+phase-3-translation,ansible-netbird,YAML,6,77,79,584
 phase-3-translation,ansible-netbird,JSON,1,0,0,260
 phase-3-translation,ansible-netbird,Python,1,43,42,238
 phase-3-translation,ansible-netbird,Markdown,1,35,0,180
 phase-3-translation,ansible-netbird,Jinja Template,4,9,0,82
+phase-3-translation,ansible-observability,YAML,4,28,14,216
 phase-3-translation,ansible-observability,Jinja Template,3,16,0,105
 phase-3-translation,ansible-observability,Markdown,1,10,0,38
+phase-3-translation,ansible-openvpn,YAML,4,59,102,388
 phase-3-translation,ansible-openvpn,Markdown,1,26,0,110
+phase-3-translation,ansible-openziti,YAML,5,66,60,489
 phase-3-translation,ansible-openziti,Jinja Template,4,13,0,228
 phase-3-translation,ansible-openziti,Markdown,1,34,0,148
+phase-3-translation,ansible-workloads,YAML,4,22,22,173
 phase-3-translation,ansible-workloads,Jinja Template,2,6,0,67
 phase-3-translation,ansible-workloads,Markdown,1,5,0,29
+phase-3-translation,terraform-aws,HCL,7,71,56,541
 phase-3-translation,terraform-aws,Markdown,1,12,0,63
+phase-3-translation,test-matrix,Python,3,66,66,250
 phase-3-translation,test-matrix,YAML,3,30,85,249
 phase-3-translation,test-matrix,CSV,23,0,0,207
 phase-3-translation,test-matrix,Markdown,1,26,0,89
 phase-3-translation,test-matrix,Text,1,0,0,2
+phase-3-translation,calico-policies,YAML,2,0,11,177
 phase-3-translation,calico-policies,Markdown,1,7,0,33
 phase-3-translation,calico-policies,Bourne Shell,1,4,3,18
+phase-3-translation,perf-battery,CSV,8,0,0,168
 phase-3-translation,perf-battery,Python,1,21,12,94
 phase-3-translation,perf-battery,Markdown,1,9,0,42
+phase-3-translation,analysis,Python,3,124,52,588
 phase-3-translation,analysis,CSV,4,0,0,344
 phase-3-translation,analysis,Markdown,2,24,0,239
 phase-3-translation,analysis,Bourne Shell,1,3,4,17

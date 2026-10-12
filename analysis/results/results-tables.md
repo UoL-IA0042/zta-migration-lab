@@ -59,39 +59,39 @@ Excluded runs: `phase-2-netbird_netbird_20261012T020151Z_9ee1d019e8ff.csv`
 
 ## Effort: journal hours
 
-35 journal entries, 52.5 hours. Deployment order: Phase 0, Phase 1, OpenZiti, Phase 1 rebuild, NetBird, Phase 3 (single operator; later work benefits from earlier).
+36 journal entries, 29.7 hours. Deployment order: Phase 0, Phase 1, OpenZiti, Phase 1 rebuild, NetBird, Phase 3 (single operator; later work benefits from earlier).
 
 Hours by phase and category:
 
 | phase | planning | coding | deployment | debugging | testing | documentation | total |
 |---|---|---|---|---|---|---|---|
-| phase-0 | 0.0 | 2.2 | 26.5 | 1.0 | 1.5 | 0.5 | 31.8 |
+| phase-0 | 0.0 | 2.2 | 3.7 | 1.0 | 1.5 | 0.5 | 8.9 |
 | phase-1 | 0.2 | 0.8 | 10.0 | 0.0 | 0.6 | 0.0 | 11.7 |
 | phase-2 | 0.5 | 0.4 | 5.1 | 0.0 | 1.5 | 0.0 | 7.5 |
 | phase-3 | 0.2 | 0.3 | 0.0 | 0.2 | 0.0 | 0.8 | 1.7 |
-| total | 1.0 | 3.8 | 41.6 | 1.2 | 3.6 | 1.3 | 52.5 |
+| total | 1.0 | 3.8 | 18.8 | 1.2 | 3.6 | 1.3 | 29.7 |
 
 Share of all hours by category:
 
 | category | hours | share |
 |---|---|---|
-| planning | 1.0 | 1.9% |
-| coding | 3.8 | 7.2% |
-| deployment | 41.6 | 79.2% |
-| debugging | 1.2 | 2.4% |
-| testing | 3.6 | 6.8% |
-| documentation | 1.3 | 2.5% |
+| planning | 1.0 | 3.4% |
+| coding | 3.8 | 12.7% |
+| deployment | 18.8 | 63.2% |
+| debugging | 1.2 | 4.2% |
+| testing | 3.6 | 12.1% |
+| documentation | 1.3 | 4.5% |
 
 Hours by phase and component (journal header field):
 
 | phase | component | hours |
 |---|---|---|
 | phase-0 | ansible-keycloak | 0.5 |
-| phase-0 | ansible-observability | 24.8 |
+| phase-0 | ansible-observability | 1.8 |
 | phase-0 | ansible-workloads | 0.5 |
 | phase-0 | github-repo | 0.5 |
 | phase-0 | node-reset | 4.5 |
-| phase-0 | terraform-aws | 1.0 |
+| phase-0 | terraform-aws | 1.2 |
 | phase-1 | ansible-openvpn | 9.7 |
 | phase-1 | ansible-workloads | 0.1 |
 | phase-1 | node-reset | 0.3 |
@@ -106,10 +106,8 @@ Hours by phase and component (journal header field):
 
 Journal problems (malformed headers are not counted; the rest are counted as written):
 
-- `journal/phase-0.md:88: end 12:30 before start 13:00 read as 23.5 h across midnight; check the times (counted as written)`
-- `journal/phase-0.md:1898: malformed header: ## 2026-10-04 21:47:21:58 | phase-0 | terraform-aws | deployment`
-- `phase-0.md: 2026-10-04 13:00-12:30 (ansible-observability) overlaps 2026-10-04 14:00-14:30 (ansible-observability)`
 - `phase-0.md: 2026-10-04 14:00-14:30 (ansible-observability) overlaps 2026-10-04 14:00-14:30 (ansible-observability)`
+- `phase-0.md: 2026-10-04 21:45-22:45 (terraform-aws) overlaps 2026-10-04 21:47-21:58 (terraform-aws)`
 
 ## Defects and unplanned work (journal `Defect:` lines)
 
@@ -152,26 +150,26 @@ Code lines (excluding blanks and comments), all languages. A component appears a
 
 | component | phase-0-infrastructure | phase-1-baseline | phase-2-openziti | phase-2-netbird | phase-3-translation |
 |---|---|---|---|---|---|
-| analysis | 35 | 35 | 35 | 35 | 600 |
-| ansible-k3s | 71 | 71 | 71 | 71 | 74 |
-| ansible-keycloak | 143 | 143 | 179 | 203 | 203 |
-| ansible-netbird | 57 | 57 | 57 | 760 | 760 |
-| ansible-observability | 143 | 143 | 143 | 143 | 143 |
-| ansible-openvpn | 33 | 80 | 110 | 110 | 110 |
-| ansible-openziti | 106 | 106 | 376 | 376 | 376 |
-| ansible-workloads | 87 | 96 | 96 | 96 | 96 |
-| calico-policies | 48 | 48 | 48 | 48 | 51 |
-| perf-battery | 17 | 86 | 127 | 136 | 136 |
-| terraform-aws | 38 | 46 | 57 | 63 | 63 |
-| test-matrix | 128 | 233 | 363 | 547 | 547 |
+| analysis | 122 | 122 | 122 | 122 | 1188 |
+| ansible-k3s | 244 | 244 | 244 | 244 | 247 |
+| ansible-keycloak | 283 | 283 | 346 | 369 | 369 |
+| ansible-netbird | 137 | 137 | 137 | 1344 | 1344 |
+| ansible-observability | 359 | 359 | 359 | 359 | 359 |
+| ansible-openvpn | 116 | 328 | 498 | 498 | 498 |
+| ansible-openziti | 261 | 261 | 865 | 865 | 865 |
+| ansible-workloads | 206 | 269 | 269 | 269 | 269 |
+| calico-policies | 225 | 225 | 225 | 225 | 228 |
+| perf-battery | 111 | 180 | 237 | 304 | 304 |
+| terraform-aws | 341 | 384 | 502 | 604 | 604 |
+| test-matrix | 330 | 483 | 613 | 797 | 797 |
 
 Each access product's own directory at its own tag:
 
 | tag | directory | code lines | by language |
 |---|---|---|---|
-| phase-1-baseline | ansible-openvpn | 80 | Markdown 80 |
-| phase-2-openziti | ansible-openziti | 376 | Jinja Template 228, Markdown 148 |
-| phase-2-netbird | ansible-netbird | 760 | JSON 260, Python 238, Markdown 180, Jinja Template 82 |
+| phase-1-baseline | ansible-openvpn | 328 | YAML 248, Markdown 80 |
+| phase-2-openziti | ansible-openziti | 865 | YAML 489, Jinja Template 228, Markdown 148 |
+| phase-2-netbird | ansible-netbird | 1344 | YAML 584, JSON 260, Python 238, Markdown 180, Jinja Template 82 |
 
 Churn between successive tags (lines added / deleted per top-level path, `git diff --numstat`). NetBird's experiment started from the Phase 1 baseline in the lab, but in the repository it follows the OpenZiti tag, so its row shows only what the NetBird experiment changed:
 
