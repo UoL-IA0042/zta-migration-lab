@@ -31,6 +31,8 @@ HEADER_RE = re.compile(
     r"^##\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})[–-](\d{2}:\d{2})"
     r"\s*\|\s*([\w.-]+)\s*\|\s*([\w.-]+)\s*\|\s*([\w-]+)\s*$")
 
+MAX_WRAP_HOURS = 8   # a longer entry that wraps midnight is almost always a typo
+
 DEFECT_RE = re.compile(r"^\s*(?:[-*]\s+)?Defect:\s*(.+?)\s*$")
 
 
@@ -54,6 +56,11 @@ def parse_file(path: str) -> tuple[list[dict], list[str]]:
                 t1 = datetime.datetime.fromisoformat(f"{date}T{end}")
                 if t1 <= t0:
                     t1 += datetime.timedelta(days=1)  # crossed midnight
+                    if (t1 - t0) > datetime.timedelta(hours=MAX_WRAP_HOURS):
+                        problems.append(
+                            f"{path}:{lineno}: end {end} before start {start} "
+                            f"read as {(t1 - t0).total_seconds() / 3600:.1f} h across "
+                            f"midnight; check the times (counted as written)")
                 if category not in CATEGORIES:
                     problems.append(
                         f"{path}:{lineno}: unknown category '{category}'")
@@ -77,6 +84,21 @@ def parse_file(path: str) -> tuple[list[dict], list[str]]:
     return entries, problems
 
 
+def overlaps(entries: list[dict]) -> list[str]:
+    """Entries whose time ranges overlap (double-counted time)."""
+    spans = []
+    for e in entries:
+        t0 = datetime.datetime.fromisoformat(f"{e['date']}T{e['start']}")
+        spans.append((t0, t0 + datetime.timedelta(minutes=e["minutes"]), e))
+    spans.sort(key=lambda s: s[0])
+    out = []
+    for (a0, a1, a), (b0, b1, b) in zip(spans, spans[1:]):
+        if b0 < a1:
+            out.append(f"{a['file']}: {a['date']} {a['start']}-{a['end']} ({a['component']}) overlaps "
+                       f"{b['date']} {b['start']}-{b['end']} ({b['component']})")
+    return out
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("journal_dir")
@@ -94,6 +116,7 @@ def main() -> None:
         entries, problems = parse_file(p)
         all_entries.extend(entries)
         all_problems.extend(problems)
+    all_problems.extend(overlaps(all_entries))
 
     with open(args.output, "w", newline="") as fh:
         w = csv.writer(fh)

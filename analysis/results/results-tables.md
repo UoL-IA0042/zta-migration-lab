@@ -104,9 +104,12 @@ Hours by phase and component (journal header field):
 | phase-3 | dissertation | 0.8 |
 | phase-3 | scripts | 0.2 |
 
-Journal entries the parser could not read (not counted):
+Journal problems (malformed headers are not counted; the rest are counted as written):
 
+- `journal/phase-0.md:88: end 12:30 before start 13:00 read as 23.5 h across midnight; check the times (counted as written)`
 - `journal/phase-0.md:1898: malformed header: ## 2026-10-04 21:47:21:58 | phase-0 | terraform-aws | deployment`
+- `phase-0.md: 2026-10-04 13:00-12:30 (ansible-observability) overlaps 2026-10-04 14:00-14:30 (ansible-observability)`
+- `phase-0.md: 2026-10-04 14:00-14:30 (ansible-observability) overlaps 2026-10-04 14:00-14:30 (ansible-observability)`
 
 ## Defects and unplanned work (journal `Defect:` lines)
 

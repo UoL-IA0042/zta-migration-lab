@@ -151,6 +151,7 @@ def journal_entries(repo):
         e, pr = parse_journal.parse_file(p)
         entries += e
         problems += pr
+    problems += parse_journal.overlaps(entries)
     return entries, problems
 
 
@@ -180,8 +181,9 @@ def effort_section(entries, problems, repo):
            "Hours by phase and component (journal header field):", "",
            table(["phase", "component", "hours"], comp_rows), ""]
     if problems:
-        out += ["Journal entries the parser could not read (not counted):", ""]
-        out += [f"- `{os.path.relpath(p.split(':')[0], repo)}:{p.split(':', 1)[1]}`" for p in problems] + [""]
+        out += ["Journal problems (malformed headers are not counted; the rest are counted as written):", ""]
+        out += [f"- `{os.path.relpath(p.split(':')[0], repo) if os.path.isabs(p.split(':')[0]) else p}"
+                + (f":{p.split(':', 1)[1]}`" if os.path.isabs(p.split(':')[0]) else "`") for p in problems] + [""]
     return out
 
 
