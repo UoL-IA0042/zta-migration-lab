@@ -1,0 +1,85 @@
+phase,role,destination,address,decision,granted_by
+phase-1,remote-admin,intranet-web,10.0.0.73:8080/tcp,allow,P1-R1
+phase-2-openziti,remote-admin,intranet-web,10.0.0.73:8080/tcp,allow,intranet-web-dial
+phase-2-netbird,remote-admin,intranet-web,10.0.0.73:8080/tcp,allow,intranet-web
+phase-1,remote-admin,file-service,10.0.0.73:445/tcp,allow,P1-R1
+phase-2-openziti,remote-admin,file-service,10.0.0.73:445/tcp,allow,file-service-dial
+phase-2-netbird,remote-admin,file-service,10.0.0.73:445/tcp,allow,file-service
+phase-1,remote-admin,postgres,10.0.0.73:5432/tcp,allow,P1-R1
+phase-2-openziti,remote-admin,postgres,10.0.0.73:5432/tcp,allow,postgres-dial
+phase-2-netbird,remote-admin,postgres,10.0.0.73:5432/tcp,allow,postgres
+phase-1,remote-admin,legacy-service,10.0.0.73:8023/tcp,allow,P1-R1
+phase-2-openziti,remote-admin,legacy-service,10.0.0.73:8023/tcp,allow,legacy-service-dial
+phase-2-netbird,remote-admin,legacy-service,10.0.0.73:8023/tcp,allow,legacy-service
+phase-1,remote-admin,aws-app,10.100.10.10:8080/tcp,allow,P1-R2
+phase-2-openziti,remote-admin,aws-app,10.100.10.10:8080/tcp,allow,aws-app-dial
+phase-2-netbird,remote-admin,aws-app,10.100.10.10:8080/tcp,allow,aws-app
+phase-1,remote-admin,perf-iperf3,10.0.0.73:5201/tcp,allow,P1-R1
+phase-2-openziti,remote-admin,perf-iperf3,10.0.0.73:5201/tcp,allow,perf-iperf3-dial
+phase-2-netbird,remote-admin,perf-iperf3,10.0.0.73:5201/tcp,allow,perf-iperf3
+phase-1,remote-admin,lab-dns,10.0.0.153:53/udp+tcp,allow,P1-R1
+phase-2-openziti,remote-admin,lab-dns,10.0.0.153:53/udp+tcp,deny,no service
+phase-2-netbird,remote-admin,lab-dns,10.0.0.153:53/udp+tcp,deny,no policy
+phase-1,remote-developer,intranet-web,10.0.0.73:8080/tcp,allow,P1-R1
+phase-2-openziti,remote-developer,intranet-web,10.0.0.73:8080/tcp,allow,intranet-web-dial
+phase-2-netbird,remote-developer,intranet-web,10.0.0.73:8080/tcp,allow,intranet-web
+phase-1,remote-developer,file-service,10.0.0.73:445/tcp,allow,P1-R1
+phase-2-openziti,remote-developer,file-service,10.0.0.73:445/tcp,allow,file-service-dial
+phase-2-netbird,remote-developer,file-service,10.0.0.73:445/tcp,allow,file-service
+phase-1,remote-developer,postgres,10.0.0.73:5432/tcp,allow,P1-R1
+phase-2-openziti,remote-developer,postgres,10.0.0.73:5432/tcp,allow,postgres-dial
+phase-2-netbird,remote-developer,postgres,10.0.0.73:5432/tcp,allow,postgres
+phase-1,remote-developer,legacy-service,10.0.0.73:8023/tcp,allow,P1-R1
+phase-2-openziti,remote-developer,legacy-service,10.0.0.73:8023/tcp,deny,no dial policy
+phase-2-netbird,remote-developer,legacy-service,10.0.0.73:8023/tcp,deny,no policy source
+phase-1,remote-developer,aws-app,10.100.10.10:8080/tcp,allow,P1-R2
+phase-2-openziti,remote-developer,aws-app,10.100.10.10:8080/tcp,allow,aws-app-dial
+phase-2-netbird,remote-developer,aws-app,10.100.10.10:8080/tcp,allow,aws-app
+phase-1,remote-developer,perf-iperf3,10.0.0.73:5201/tcp,allow,P1-R1
+phase-2-openziti,remote-developer,perf-iperf3,10.0.0.73:5201/tcp,deny,no dial policy
+phase-2-netbird,remote-developer,perf-iperf3,10.0.0.73:5201/tcp,deny,no policy source
+phase-1,remote-developer,lab-dns,10.0.0.153:53/udp+tcp,allow,P1-R1
+phase-2-openziti,remote-developer,lab-dns,10.0.0.153:53/udp+tcp,deny,no service
+phase-2-netbird,remote-developer,lab-dns,10.0.0.153:53/udp+tcp,deny,no policy
+phase-1,remote-analyst,intranet-web,10.0.0.73:8080/tcp,allow,P1-R1
+phase-2-openziti,remote-analyst,intranet-web,10.0.0.73:8080/tcp,allow,intranet-web-dial
+phase-2-netbird,remote-analyst,intranet-web,10.0.0.73:8080/tcp,allow,intranet-web
+phase-1,remote-analyst,file-service,10.0.0.73:445/tcp,allow,P1-R1
+phase-2-openziti,remote-analyst,file-service,10.0.0.73:445/tcp,allow,file-service-dial
+phase-2-netbird,remote-analyst,file-service,10.0.0.73:445/tcp,allow,file-service
+phase-1,remote-analyst,postgres,10.0.0.73:5432/tcp,allow,P1-R1
+phase-2-openziti,remote-analyst,postgres,10.0.0.73:5432/tcp,allow,postgres-dial
+phase-2-netbird,remote-analyst,postgres,10.0.0.73:5432/tcp,allow,postgres
+phase-1,remote-analyst,legacy-service,10.0.0.73:8023/tcp,allow,P1-R1
+phase-2-openziti,remote-analyst,legacy-service,10.0.0.73:8023/tcp,deny,no dial policy
+phase-2-netbird,remote-analyst,legacy-service,10.0.0.73:8023/tcp,deny,no policy source
+phase-1,remote-analyst,aws-app,10.100.10.10:8080/tcp,allow,P1-R2
+phase-2-openziti,remote-analyst,aws-app,10.100.10.10:8080/tcp,allow,aws-app-dial
+phase-2-netbird,remote-analyst,aws-app,10.100.10.10:8080/tcp,allow,aws-app
+phase-1,remote-analyst,perf-iperf3,10.0.0.73:5201/tcp,allow,P1-R1
+phase-2-openziti,remote-analyst,perf-iperf3,10.0.0.73:5201/tcp,deny,no dial policy
+phase-2-netbird,remote-analyst,perf-iperf3,10.0.0.73:5201/tcp,deny,no policy source
+phase-1,remote-analyst,lab-dns,10.0.0.153:53/udp+tcp,allow,P1-R1
+phase-2-openziti,remote-analyst,lab-dns,10.0.0.153:53/udp+tcp,deny,no service
+phase-2-netbird,remote-analyst,lab-dns,10.0.0.153:53/udp+tcp,deny,no policy
+phase-1,remote-contractor,intranet-web,10.0.0.73:8080/tcp,allow,P1-R3
+phase-2-openziti,remote-contractor,intranet-web,10.0.0.73:8080/tcp,allow,intranet-web-dial
+phase-2-netbird,remote-contractor,intranet-web,10.0.0.73:8080/tcp,allow,intranet-web
+phase-1,remote-contractor,file-service,10.0.0.73:445/tcp,deny,default deny (routed)
+phase-2-openziti,remote-contractor,file-service,10.0.0.73:445/tcp,deny,no dial policy
+phase-2-netbird,remote-contractor,file-service,10.0.0.73:445/tcp,deny,no policy source
+phase-1,remote-contractor,postgres,10.0.0.73:5432/tcp,allow,P1-R4
+phase-2-openziti,remote-contractor,postgres,10.0.0.73:5432/tcp,deny,no dial policy
+phase-2-netbird,remote-contractor,postgres,10.0.0.73:5432/tcp,deny,no policy source
+phase-1,remote-contractor,legacy-service,10.0.0.73:8023/tcp,deny,default deny (routed)
+phase-2-openziti,remote-contractor,legacy-service,10.0.0.73:8023/tcp,deny,no dial policy
+phase-2-netbird,remote-contractor,legacy-service,10.0.0.73:8023/tcp,deny,no policy source
+phase-1,remote-contractor,aws-app,10.100.10.10:8080/tcp,deny,default deny (routed)
+phase-2-openziti,remote-contractor,aws-app,10.100.10.10:8080/tcp,deny,no dial policy
+phase-2-netbird,remote-contractor,aws-app,10.100.10.10:8080/tcp,deny,no policy source
+phase-1,remote-contractor,perf-iperf3,10.0.0.73:5201/tcp,deny,default deny (routed)
+phase-2-openziti,remote-contractor,perf-iperf3,10.0.0.73:5201/tcp,deny,no dial policy
+phase-2-netbird,remote-contractor,perf-iperf3,10.0.0.73:5201/tcp,deny,no policy source
+phase-1,remote-contractor,lab-dns,10.0.0.153:53/udp+tcp,allow,P1-R5+P1-R6
+phase-2-openziti,remote-contractor,lab-dns,10.0.0.153:53/udp+tcp,deny,no service
+phase-2-netbird,remote-contractor,lab-dns,10.0.0.153:53/udp+tcp,deny,no policy

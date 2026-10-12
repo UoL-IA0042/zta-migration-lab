@@ -1,0 +1,97 @@
+phase,role,resource,operation,expected,observed,deny_layers
+phase-1,remote-admin,intranet-web,read,allow,allow x1,-
+phase-1,remote-admin,file-service,connect,allow,allow x1,-
+phase-1,remote-admin,postgres,read,allow,allow x1,-
+phase-1,remote-admin,postgres,write,allow,allow x1,-
+phase-1,remote-admin,legacy-service,connect,allow,allow x1,-
+phase-1,remote-admin,aws-s3-data,read,allow,allow x1,-
+phase-1,remote-admin,aws-s3-data,write,allow,allow x1,-
+phase-1,remote-admin,aws-app,read,allow,allow x1,-
+phase-1,remote-developer,intranet-web,read,allow,allow x1,-
+phase-1,remote-developer,file-service,connect,allow,allow x1,-
+phase-1,remote-developer,postgres,read,allow,allow x1,-
+phase-1,remote-developer,postgres,write,allow,allow x1,-
+phase-1,remote-developer,legacy-service,connect,allow,allow x1,-
+phase-1,remote-developer,aws-s3-data,read,allow,allow x1,-
+phase-1,remote-developer,aws-s3-data,write,deny,deny (iam) x1,iam
+phase-1,remote-developer,aws-app,read,allow,allow x1,-
+phase-1,remote-analyst,intranet-web,read,allow,allow x1,-
+phase-1,remote-analyst,file-service,connect,allow,allow x1,-
+phase-1,remote-analyst,postgres,read,allow,allow x1,-
+phase-1,remote-analyst,postgres,write,deny,deny (database) x1,database
+phase-1,remote-analyst,legacy-service,connect,allow,allow x1,-
+phase-1,remote-analyst,aws-s3-data,read,allow,allow x1,-
+phase-1,remote-analyst,aws-s3-data,write,deny,deny (iam) x1,iam
+phase-1,remote-analyst,aws-app,read,allow,allow x1,-
+phase-1,remote-contractor,intranet-web,read,allow,allow x1,-
+phase-1,remote-contractor,file-service,connect,deny,deny (network) x1,network
+phase-1,remote-contractor,postgres,read,deny,deny (database) x1,database
+phase-1,remote-contractor,postgres,write,deny,deny (database) x1,database
+phase-1,remote-contractor,legacy-service,connect,deny,deny (network) x1,network
+phase-1,remote-contractor,aws-s3-data,read,deny,deny (iam) x1,iam
+phase-1,remote-contractor,aws-s3-data,write,deny,deny (iam) x1,iam
+phase-1,remote-contractor,aws-app,read,deny,deny (network) x1,network
+phase-2-openziti,remote-admin,intranet-web,read,allow,allow x1,-
+phase-2-openziti,remote-admin,file-service,connect,allow,allow x1,-
+phase-2-openziti,remote-admin,postgres,read,allow,allow x1,-
+phase-2-openziti,remote-admin,postgres,write,allow,allow x1,-
+phase-2-openziti,remote-admin,legacy-service,connect,allow,allow x1,-
+phase-2-openziti,remote-admin,aws-s3-data,read,allow,allow x1,-
+phase-2-openziti,remote-admin,aws-s3-data,write,allow,allow x1,-
+phase-2-openziti,remote-admin,aws-app,read,allow,allow x1,-
+phase-2-openziti,remote-developer,intranet-web,read,allow,allow x1,-
+phase-2-openziti,remote-developer,file-service,connect,allow,allow x1,-
+phase-2-openziti,remote-developer,postgres,read,allow,allow x1,-
+phase-2-openziti,remote-developer,postgres,write,allow,allow x1,-
+phase-2-openziti,remote-developer,legacy-service,connect,deny,deny (network) x1,network
+phase-2-openziti,remote-developer,aws-s3-data,read,allow,allow x1,-
+phase-2-openziti,remote-developer,aws-s3-data,write,deny,deny (iam) x1,iam
+phase-2-openziti,remote-developer,aws-app,read,allow,allow x1,-
+phase-2-openziti,remote-analyst,intranet-web,read,allow,allow x1,-
+phase-2-openziti,remote-analyst,file-service,connect,allow,allow x1,-
+phase-2-openziti,remote-analyst,postgres,read,allow,allow x1,-
+phase-2-openziti,remote-analyst,postgres,write,deny,deny (database) x1,database
+phase-2-openziti,remote-analyst,legacy-service,connect,deny,deny (network) x1,network
+phase-2-openziti,remote-analyst,aws-s3-data,read,allow,allow x1,-
+phase-2-openziti,remote-analyst,aws-s3-data,write,deny,deny (iam) x1,iam
+phase-2-openziti,remote-analyst,aws-app,read,allow,allow x1,-
+phase-2-openziti,remote-contractor,intranet-web,read,allow,allow x1,-
+phase-2-openziti,remote-contractor,file-service,connect,deny,deny (network) x1,network
+phase-2-openziti,remote-contractor,postgres,read,deny,deny (network) x1,network
+phase-2-openziti,remote-contractor,postgres,write,deny,deny (network) x1,network
+phase-2-openziti,remote-contractor,legacy-service,connect,deny,deny (network) x1,network
+phase-2-openziti,remote-contractor,aws-s3-data,read,deny,deny (iam) x1,iam
+phase-2-openziti,remote-contractor,aws-s3-data,write,deny,deny (iam) x1,iam
+phase-2-openziti,remote-contractor,aws-app,read,deny,deny (network) x1,network
+phase-2-netbird,remote-admin,intranet-web,read,allow,allow x1,-
+phase-2-netbird,remote-admin,file-service,connect,allow,allow x1,-
+phase-2-netbird,remote-admin,postgres,read,allow,allow x1,-
+phase-2-netbird,remote-admin,postgres,write,allow,allow x1,-
+phase-2-netbird,remote-admin,legacy-service,connect,allow,allow x1,-
+phase-2-netbird,remote-admin,aws-s3-data,read,allow,allow x1,-
+phase-2-netbird,remote-admin,aws-s3-data,write,allow,allow x1,-
+phase-2-netbird,remote-admin,aws-app,read,allow,allow x1,-
+phase-2-netbird,remote-developer,intranet-web,read,allow,allow x1,-
+phase-2-netbird,remote-developer,file-service,connect,allow,allow x1,-
+phase-2-netbird,remote-developer,postgres,read,allow,allow x1,-
+phase-2-netbird,remote-developer,postgres,write,allow,allow x1,-
+phase-2-netbird,remote-developer,legacy-service,connect,deny,deny (network) x1,network
+phase-2-netbird,remote-developer,aws-s3-data,read,allow,allow x1,-
+phase-2-netbird,remote-developer,aws-s3-data,write,deny,deny (iam) x1,iam
+phase-2-netbird,remote-developer,aws-app,read,allow,allow x1,-
+phase-2-netbird,remote-analyst,intranet-web,read,allow,allow x2,-
+phase-2-netbird,remote-analyst,file-service,connect,allow,allow x2,-
+phase-2-netbird,remote-analyst,postgres,read,allow,allow x1; deny (network) x1,network
+phase-2-netbird,remote-analyst,postgres,write,deny,deny (database) x2,database
+phase-2-netbird,remote-analyst,legacy-service,connect,deny,deny (network) x2,network
+phase-2-netbird,remote-analyst,aws-s3-data,read,allow,allow x2,-
+phase-2-netbird,remote-analyst,aws-s3-data,write,deny,deny (iam) x2,iam
+phase-2-netbird,remote-analyst,aws-app,read,allow,allow x2,-
+phase-2-netbird,remote-contractor,intranet-web,read,allow,allow x1,-
+phase-2-netbird,remote-contractor,file-service,connect,deny,deny (network) x1,network
+phase-2-netbird,remote-contractor,postgres,read,deny,deny (network) x1,network
+phase-2-netbird,remote-contractor,postgres,write,deny,deny (network) x1,network
+phase-2-netbird,remote-contractor,legacy-service,connect,deny,deny (network) x1,network
+phase-2-netbird,remote-contractor,aws-s3-data,read,deny,deny (iam) x1,iam
+phase-2-netbird,remote-contractor,aws-s3-data,write,deny,deny (iam) x1,iam
+phase-2-netbird,remote-contractor,aws-app,read,deny,deny (network) x1,network
