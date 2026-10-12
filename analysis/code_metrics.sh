@@ -1,24 +1,36 @@
 #!/usr/bin/env bash
 # Code-volume metrics per phase tag (implementation-complexity proxy, RQ4/RQ5).
-# Requires: git repo with phase tags; cloc (apt install cloc).
+# Requires: git repo with phase tags; cloc (brew install cloc / apt install cloc).
 #
-# Usage: ./code_metrics.sh [output.csv]   # run from repo root
+# Each tag is unpacked into a temporary directory with `git archive`, so
+# the working tree, the current branch and any uncommitted changes are
+# never touched (an earlier version checked tags out and returned with
+# `git checkout -`, which left the repo detached at the second-to-last tag).
+#
+# Usage: ./analysis/code_metrics.sh [output.csv]   # run from repo root
 set -euo pipefail
 
 OUT="${1:-analysis/code_metrics.csv}"
-echo "tag,component,language,files,blank,comment,code" > "$OUT"
+WORK="$(mktemp -d)"
+trap 'rm -rf "$WORK"' EXIT
+TMP_OUT="$WORK/code_metrics.csv"
+echo "tag,component,language,files,blank,comment,code" > "$TMP_OUT"
 
 for TAG in $(git tag --list 'phase-*' | sort); do
-  git -c advice.detachedHead=false checkout -q "$TAG"
-  for DIR in ansible-* terraform-* test-matrix calico-policies perf-battery analysis; do
+  SRC="$WORK/$TAG"
+  mkdir -p "$SRC"
+  git archive --format=tar "$TAG" | tar -x -C "$SRC"
+  for DIR in "$SRC"/ansible-* "$SRC"/terraform-* "$SRC"/test-matrix \
+             "$SRC"/calico-policies "$SRC"/perf-battery "$SRC"/analysis; do
     [ -d "$DIR" ] || continue
+    NAME="$(basename "$DIR")"
     cloc --quiet --csv "$DIR" 2>/dev/null | tail -n +3 | \
-      awk -F, -v tag="$TAG" -v dir="$DIR" \
-        'NF>=5 && $2!="SUM" {print tag","dir","$2","$1","$3","$4","$5}' >> "$OUT"
+      awk -F, -v tag="$TAG" -v dir="$NAME" \
+        'NF>=5 && $2!="SUM" {print tag","dir","$2","$1","$3","$4","$5}' >> "$TMP_OUT"
   done
 done
-git checkout -q -   # return to previous ref
 
+mv "$TMP_OUT" "$OUT"
 echo "wrote $OUT"
 echo "Per-tag totals (code lines):"
 awk -F, 'NR>1 {sum[$1]+=$7} END {for (t in sum) print "  "t": "sum[t]}' "$OUT" | sort
