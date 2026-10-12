@@ -133,17 +133,22 @@ must be off: all three capture 10.0.0.73.
 
 First login per role (home Wi-Fi), then the access model:
 
-1. Sign out of Keycloak in the default browser, so the login does not
-   reuse the previous role:
-   `https://idp.<edge-ip-dashed>.sslip.io/realms/lab/protocol/openid-connect/logout`
-2. Create and select the role's profile, and log in:
+1. Create and select the role's profile, and log in with `--no-browser`:
    ```bash
    netbird down
    netbird profile add remote-admin        # once per role
    netbird profile select remote-admin
-   netbird up --management-url https://netbird.<edge-ip-dashed>.sslip.io --hostname mac-remote-admin
+   netbird up --no-browser --management-url "https://netbird.${LAB_EDGE_IP//./-}.sslip.io" --hostname mac-remote-admin
    ```
-   In the browser choose Keycloak and log in as the role.
+2. Open the printed URL in a **private browser window** and choose
+   **Keycloak** (not the email/password form, which is the bootstrap
+   admin), then log in as the role. A normal window can silently reuse an
+   earlier session, NetBird's (the dashboard admin) or Keycloak's (the
+   previous role), and register the Mac as the wrong user.
+   Check on the edge host that `/api/users` lists
+   `<role>@lab.example.com` and `/api/groups` a `<role>` group with
+   `issued: "jwt"`. A wrongly registered peer: `netbird deregister` in
+   that profile, then log in again.
 3. `netbird down` (on home Wi-Fi the client's routes would capture
    10.0.0.73 and break Ansible against tpi2-3), then from `ansible-netbird/`:
    ```bash
