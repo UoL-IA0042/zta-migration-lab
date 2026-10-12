@@ -16,6 +16,9 @@ Defect: controller container exits at start after re-flash. Cause: cgroup v2 fla
 
 Header fields: `date start–end | phase | component | category`.
 
+Commit hashes cited in entries written before 2026-10-12 predate the
+history rewrite; `docs/commit-map.md` maps them to the current commits.
+
 Categories (fixed taxonomy — do not invent new ones mid-study):
 `planning`, `coding`, `deployment`, `debugging`, `testing`,
 `documentation`.
