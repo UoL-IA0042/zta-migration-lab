@@ -30,6 +30,13 @@ repository therefore lives in two forms:
 - **Incidental identifiers**: hostnames, home-network details, cloud
   account IDs, bucket names containing usernames. The export script
   greps for a configurable blocklist and refuses to export on a match.
+  AWS account IDs inside ARNs (the S3 AccessDenied messages in the
+  matrix CSVs) are redacted to `<account-id>` in the export copy only;
+  the committed data keeps them.
+- **Untracked secrets**: `.vault-pass`, `terraform.tfstate`, `.gitconfig`
+  and virtualenvs live in the working tree but are gitignored. The export
+  is built from the committed tree at HEAD (`git archive`), so they never
+  reach it; the script refuses to run with uncommitted changes.
 
 ## In-text citation during review
 
